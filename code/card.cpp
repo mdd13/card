@@ -1,5 +1,8 @@
+#pragma once
 // TODO: Use header file instead
 #include "mem.cpp"
+#include "entity.cpp"
+#include "game.cpp"
 #include "random.cpp"
 
 #include <string.h>
@@ -382,38 +385,19 @@ char *CardString(Card card) {
 	return result;
 }
 
-struct CardBoard {
+struct CardTable {
 	int last_player_turn;
 	int player_turn;
-	int board_turn;
+	int table_turn;
 	int have_turn[4];
 
-	int player_cards[4][13];
-	int player_cards_len[4];
+	int    player_cards_len[4];
+	Card   player_cards[4][13];
+	Entity player_entities[4][13];
 
-	int board_last_cards[13];
+	int table_last_cards[13];
 	int dumping_cards[52];
 };
-
-void CardBoardInit(CardBoard *board) {
-	board->last_player_turn = 0;
-	board->player_turn = RandomInt(0, 4);
-	board->board_turn = 0;
-	for (int i = 0; i < 4; ++i) {
-		board->have_turn[i] = 1;
-	}
-	int deck_cards[52];
-	for (int i = 0; i < 52; i++) {
-		deck_cards[i] = i;
-	}
-	ShuffleIntArray(deck_cards, 52);
-	for (int i = 0; i < 4; ++i) {
-		board->player_cards_len[i] = 13;
-		for (int j = 0; j < 13; ++j) {
-			board->player_cards[i][j] = deck_cards[j * 4 + i];
-		}
-	}
-}
 
 #define CardPng(suit, value) "image/52cards/card-" suit "-" value ".png"
 #define CardPng4(value) CardPng("hearts", #value),		\
@@ -427,18 +411,19 @@ const char *CardImgFile[] = {
 	CardPng4(13),
 	CardPng4(12),
 	CardPng4(11),
-	CardPng4(10),	
+	CardPng4(10),
 	CardPng4(9),
 	CardPng4(8),
 	CardPng4(7),
-	CardPng4(6),	
+	CardPng4(6),
 	CardPng4(5),
 	CardPng4(4),
 	CardPng4(3),
 };
 
 GLOBAL SDL_Texture *card_images[52];
-
+GLOBAL int32_t card_width = 96;
+GLOBAL int32_t card_height = 144;
 void CardTextureInit(SDL_Renderer *renderer) {
 	for (int i = 0; i < 52; ++i) {
 		card_images[i] = IMG_LoadTexture(renderer, CardImgFile[i]);
@@ -446,65 +431,130 @@ void CardTextureInit(SDL_Renderer *renderer) {
 	}
 }
 
-GLOBAL int32_t card_width = 96;
-GLOBAL int32_t card_height = 144;
-void CardRender(SDL_Renderer *renderer, int x, int y, Card card) {
-	SDL_Rect rect = {};
-	rect.x = x;
-	rect.y = y;
-	rect.w = card_width;
-	rect.h = card_height;
-	SDL_RenderCopy(renderer, card_images[card], 0, &rect);
+// NOTE(): Texture and Table init
+void CardTableInit(CardTable *table) {
+	table->last_player_turn = 0;
+	table->player_turn = RandomInt(0, 4);
+	table->table_turn = 0;
+	for (int i = 0; i < 4; ++i) {
+		table->have_turn[i] = 1;
+	}
+
+	Card deck_cards[52];
+	for (int i = 0; i < 52; i++) {
+		deck_cards[i] = i;
+	}
+
+	ShuffleIntArray(deck_cards, 52);
+	for (int i = 0; i < 4; ++i) {
+		table->player_cards_len[i] = 13;
+		for (int j = 0; j < 13; ++j) {
+			Card card = deck_cards[j * 4 + i];
+			table->player_cards[i][j] = card;
+
+			Entity new_entity = {};
+			new_entity.x = 0;
+			new_entity.y = 0;
+			new_entity.w = card_width;
+			new_entity.h = card_height;
+
+			new_entity.texture = card_images[card];
+
+			table->player_entities[i][j] = new_entity;
+		}
+	}
 }
 
-void CardBoardRender(SDL_Renderer *renderer, CardBoard *board) {
-	/// Render player_0's hand
+void CardInit(SDL_Renderer *renderer, CardTable *table) {
+	if (!card_images[0]) {
+		CardTextureInit(renderer);
+	}
+
+	CardTableInit(table);
+}
+
+void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTable *table) {
+	// Update player_0's hand
 	{
-		int hand_width = (board->player_cards_len[0] + 1) * (card_width / 2);
+		int hand_width = (table->player_cards_len[0] + 1) * (card_width / 2);
 		int x = (window_width - hand_width) / 2;
 		int y = window_height - card_height - 40;
-	
-		for (int i = 0; i < board->player_cards_len[0]; ++i) {
-			CardRender(renderer, x, y, board->player_cards[0][i]);
+
+		int len = table->player_cards_len[0];
+		ForRange (i, 0, len) {
+			table->player_entities[0][i].x = x;
+			table->player_entities[0][i].y = y;
 			x = x + card_width / 2;
 		}
 	}
 
-	/// Render player_1's hand
+	/// Update player_1's hand
 	{
-		int hand_height = (board->player_cards_len[1]) * (card_height / 4)
+		int hand_height = (table->player_cards_len[1]) * (card_height / 4)
 			+ ((card_height / 4) * 3);
 		int x = (window_width - card_width - 40);
 		int y = (window_height - hand_height) / 2;
-	
-		for (int i = 0; i < board->player_cards_len[1]; ++i) {
-			CardRender(renderer, x, y, board->player_cards[1][i]);
+
+		int len = table->player_cards_len[1];
+		ForRange (i, 0, len) {
+			table->player_entities[1][i].x = x;
+			table->player_entities[1][i].y = y;
 			y = y + card_height / 4;
 		}
 	}
-	
-	/// Render player_2's hand
+
+	// Update player_2's hand
 	{
-		int hand_width = (board->player_cards_len[2] + 1) * (card_width / 2);
+		int hand_width = (table->player_cards_len[2] + 1) * (card_width / 2);
 		int x = (window_width - hand_width) / 2;
 		int y = 20;
-	
-		for (int i = 0; i < board->player_cards_len[2]; ++i) {
-			CardRender(renderer, x, y, board->player_cards[2][i]);
+
+		int len = table->player_cards_len[2];
+		ForRange (i, 0, len) {
+			table->player_entities[2][i].x = x;
+			table->player_entities[2][i].y = y;
 			x = x + card_width / 2;
 		}
 	}
 
-	/// Render player_3's hand
+	/// Update player_3's hand
 	{
-		int hand_height = (board->player_cards_len[3]) * (card_height / 4)
+		int hand_height = (table->player_cards_len[3]) * (card_height / 4)
 			+ ((card_height / 4) * 3);
 		int x = 40;
 		int y = (window_height - hand_height) / 2;
-	
-		for (int i = 0; i < board->player_cards_len[3]; ++i) {
-			CardRender(renderer, x, y, board->player_cards[3][i]);
+
+		int len = table->player_cards_len[3];
+		ForRange (i, 0, len) {
+			table->player_entities[3][i].x = x;
+			table->player_entities[3][i].y = y;
 			y = y + card_height / 4;
+		}
+	}
+
+	bool HoverCard[4][13];
+	ForRange (i, 0, 4) {
+		int len = table->player_cards_len[i];
+		ForRange (j, 0, len) {
+			Entity *entity = &table->player_entities[i][j];
+			HoverCard[i][j] = EntityMouseIn(entity, &input->mouse);
+		}
+	}
+
+	ForRange (i, 0, 4) {
+		int len = table->player_cards_len[i];
+		ForRange (j, 0, len - 1) {
+			if (HoverCard[i][j] && HoverCard[i][j+1])  {
+				HoverCard[i][j] = false;
+			}
+		}
+	}
+	
+	ForRange (i, 0, 4) {
+		int len = table->player_cards_len[i];
+		ForRange (j, 0, len) {
+			Entity *entity = &table->player_entities[i][j];
+			EntityRender(entity, renderer, HoverCard[i][j]);
 		}
 	}
 }

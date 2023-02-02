@@ -2,26 +2,23 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 
+#include "game.cpp"
 #include "card.cpp"
 #include "common.h"
+
 
 GLOBAL bool running = true;
 
 GLOBAL SDL_Window *window;
 GLOBAL SDL_Renderer *renderer;
 
-/// Mouse position
-GLOBAL int32_t mouse_x;
-GLOBAL int32_t mouse_y;
+void ProcessInputKey(GameKeyState *state, bool is_down) {
+	state->is_down = is_down;
+}
 
-/// Key down state
-GLOBAL bool controller_up;
-GLOBAL bool controller_down;
-GLOBAL bool controller_left;
-GLOBAL bool controller_right;
-
-void ProcessInput() {
-	SDL_GetMouseState(&mouse_x, &mouse_y);
+void ProcessInput(GameInput *input) {
+	GameMouse *mouse = &input->mouse;
+	SDL_GetMouseState(&mouse->x, &mouse->y);
 
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
@@ -38,10 +35,15 @@ void ProcessInput() {
 			bool is_left = (scancode == SDL_SCANCODE_A) || (scancode == SDL_SCANCODE_LEFT);
 			bool is_right = (scancode == SDL_SCANCODE_D) || (scancode == SDL_SCANCODE_RIGHT);
 
-			controller_up = (controller_up && !is_up);
-			controller_down = (controller_down && !is_down);
-			controller_left = (controller_left && !is_left);
-			controller_right = (controller_right && !is_right);
+			GameKeyState *up = &input->controller.up;
+			GameKeyState *down = &input->controller.down;
+			GameKeyState *left = &input->controller.left;
+			GameKeyState *right = &input->controller.right;
+
+			ProcessInputKey(up, !is_up);
+			ProcessInputKey(down, !is_down);
+			ProcessInputKey(left, !is_left);
+			ProcessInputKey(right, !is_right);
 
 			continue;
 		}
@@ -54,36 +56,38 @@ void ProcessInput() {
 			bool is_left = (scancode == SDL_SCANCODE_A) || (scancode == SDL_SCANCODE_LEFT);
 			bool is_right = (scancode == SDL_SCANCODE_D) || (scancode == SDL_SCANCODE_RIGHT);
 
-			controller_up = (controller_up || is_up);
-			controller_down = (controller_down || is_down);
-			controller_left = (controller_left || is_left);
-			controller_right = (controller_right || is_right);
+			GameKeyState *up = &input->controller.up;
+			GameKeyState *down = &input->controller.down;
+			GameKeyState *left = &input->controller.left;
+			GameKeyState *right = &input->controller.right;
+
+			ProcessInputKey(up, is_up);
+			ProcessInputKey(down, is_down);
+			ProcessInputKey(left, is_left);
+			ProcessInputKey(right, is_right);
 		}
 	}
 }
 
-struct GameState {
-	bool initialzed;
-	CardBoard board;
-};
+void UpdateAndRender(GameInput *input, GameMemory *memory) {
+	if (!memory->initialzed) {
+		memory->initialzed = true;
+		memory->len = Gb(1);
+		memory->base = Alloc(memory->len);
 
-void UpdateAndRender(GameState *state) {
-	if (!state->initialzed) {
-		state->initialzed = true;
-		CardBoardInit(&state->board);
-		CardTextureInit(renderer);
+		CardTable *table = (CardTable *) memory->base;
+		CardInit(renderer, table);
 	}
 
-	CardBoard *board = &state->board;
-
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	CardTable *table = (CardTable *) memory->base;
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 
-	CardBoardRender(renderer, board);
+	CardTableUpdateAndRender(renderer, input, table);
 
-	SDL_Rect rect;
-	rect.x = mouse_x - 10;
-	rect.y = mouse_y - 10;
+	SDL_Rect rect = {};
+	rect.x = input->mouse.x - 10;
+	rect.y = input->mouse.y - 10;
 	rect.w = 20;
 	rect.h = 20;
 
@@ -103,11 +107,15 @@ int main() {
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	Assert(renderer);
 
-	GameState state = {};
+	err = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	Assert(!err);
+
+	GameInput input = {};
+	GameMemory memory = {};
 
 	while (running) {
-		ProcessInput();
-		UpdateAndRender(&state);
+		ProcessInput(&input);
+		UpdateAndRender(&input, &memory);
 	}
 
 	SDL_DestroyWindow(window);

@@ -9,7 +9,7 @@ cd build
 set linker_flags=-I../code -L../win32_lib/SDL2/x64 -lSDL2 -lSDL2_image
 rem -Wl,-subsystem:console
 rem -Wl,-subsystem:windows
-set compiler_flags=-g -DWINDOWS=1
+set compiler_flags=-O3 -DWINDOWS=1
 
 clang++ %compiler_flags%  ../code/sdl2_main.cpp %linker_flags% -o game.exe
 
