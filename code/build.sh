@@ -5,8 +5,8 @@ pushd ..
 mkdir -p build
 cd build
 
-linker_flags="-I../code -L../linux_lib/ -lSDL2"
-compiler_flags="-g -DWINDOWS=1"
+linker_flags="-I../code -L../linux_lib/ -lSDL2 -lSDL2_image"
+compiler_flags="-O3"
 
 set -xe
 

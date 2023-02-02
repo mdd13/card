@@ -1,5 +1,6 @@
 #pragma once
-// TODO: Use header file instead
+/// TODO: Use header file instead
+#include "common.h"
 #include "mem.cpp"
 #include "entity.cpp"
 #include "game.cpp"
@@ -17,7 +18,7 @@ enum CardSuit {
 	CARD_SPADE,
 };
 
-// TODO: Use macro to generate strings from enum
+/// TODO: Use macro to generate strings from enum
 const char *CardSuitString[] = {
 	"CARD_HEART",
 	"CARD_DIAMOND",
@@ -370,7 +371,7 @@ inline Card CardBuild(CardSuit suit, CardValue value) {
 	return value * 4 + suit;
 }
 
-// NOTE: Remember to free when done using
+/// NOTE: Remember to free when done using
 char *CardString(Card card) {
 	CardSuit suit = GetCardSuit(card);
 	CardValue value = GetCardValue(card);
@@ -431,7 +432,7 @@ void CardTextureInit(SDL_Renderer *renderer) {
 	}
 }
 
-// NOTE(): Texture and Table init
+/// NOTE(): Texture and Table init
 void CardTableInit(CardTable *table) {
 	table->last_player_turn = 0;
 	table->player_turn = RandomInt(0, 4);
@@ -482,8 +483,13 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[0];
 		ForRange (i, 0, len) {
-			table->player_entities[0][i].x = x;
-			table->player_entities[0][i].y = y;
+			Entity *entity = &table->player_entities[0][i];
+			if (!entity->is_grabbed) {
+				entity->x = x;
+				entity->y = y;
+			} else {
+				EntityGrab(entity, input);
+			}
 			x = x + card_width / 2;
 		}
 	}
@@ -497,8 +503,13 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[1];
 		ForRange (i, 0, len) {
-			table->player_entities[1][i].x = x;
-			table->player_entities[1][i].y = y;
+			Entity *entity = &table->player_entities[1][i];
+			if (!entity->is_grabbed) {
+				entity->x = x;
+				entity->y = y;
+			} else {
+				EntityGrab(entity, input);
+			}
 			y = y + card_height / 4;
 		}
 	}
@@ -511,8 +522,13 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[2];
 		ForRange (i, 0, len) {
-			table->player_entities[2][i].x = x;
-			table->player_entities[2][i].y = y;
+			Entity *entity = &table->player_entities[2][i];
+			if (!entity->is_grabbed) {
+				entity->x = x;
+				entity->y = y;
+			} else {
+				EntityGrab(entity, input);
+			}
 			x = x + card_width / 2;
 		}
 	}
@@ -526,35 +542,49 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[3];
 		ForRange (i, 0, len) {
-			table->player_entities[3][i].x = x;
-			table->player_entities[3][i].y = y;
+			Entity *entity = &table->player_entities[3][i];
+			if (!entity->is_grabbed) {
+				entity->x = x;
+				entity->y = y;				
+			} else {
+				EntityGrab(entity, input);
+			}
 			y = y + card_height / 4;
 		}
 	}
 
-	bool HoverCard[4][13];
-	ForRange (i, 0, 4) {
-		int len = table->player_cards_len[i];
-		ForRange (j, 0, len) {
-			Entity *entity = &table->player_entities[i][j];
-			HoverCard[i][j] = EntityMouseIn(entity, &input->mouse);
-		}
-	}
+	int hover_i = -1;
+	int hover_j = -1;
 
 	ForRange (i, 0, 4) {
 		int len = table->player_cards_len[i];
 		ForRange (j, 0, len - 1) {
-			if (HoverCard[i][j] && HoverCard[i][j+1])  {
-				HoverCard[i][j] = false;
+			Entity *entity_0 = &table->player_entities[i][j];
+			Entity *entity_1 = &table->player_entities[i][j+1];
+			bool in0 = EntityMouseIn(entity_0, &input->mouse);
+			bool in1 = EntityMouseIn(entity_1, &input->mouse);
+			if (in0) {
+				hover_i = i;
+				hover_j = j;
+			}
+			if (in1) {
+				hover_i = i;
+				hover_j = j+1;
 			}
 		}
 	}
-	
+
+	if (hover_i >= 0) {
+		Entity *entity = &table->player_entities[hover_i][hover_j];
+		EntityGrab(entity, input);
+	}
+
+	/// NOTE(): Render
 	ForRange (i, 0, 4) {
 		int len = table->player_cards_len[i];
 		ForRange (j, 0, len) {
 			Entity *entity = &table->player_entities[i][j];
-			EntityRender(entity, renderer, HoverCard[i][j]);
+			EntityRender(entity, renderer, (i == hover_i) && (j == hover_j));
 		}
 	}
 }

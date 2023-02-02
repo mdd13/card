@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_events.h"
 #include "SDL2/SDL_image.h"
 
+#include "SDL2/SDL_mouse.h"
 #include "game.cpp"
 #include "card.cpp"
 #include "common.h"
@@ -13,7 +15,9 @@ GLOBAL SDL_Window *window;
 GLOBAL SDL_Renderer *renderer;
 
 void ProcessInputKey(GameKeyState *state, bool is_down) {
-	state->is_down = is_down;
+	if (state->is_down != is_down) {
+		state->is_down = is_down;
+	}
 }
 
 void ProcessInput(GameInput *input) {
@@ -65,6 +69,37 @@ void ProcessInput(GameInput *input) {
 			ProcessInputKey(down, is_down);
 			ProcessInputKey(left, is_left);
 			ProcessInputKey(right, is_right);
+
+			continue;
+		}
+
+		if (event.type == SDL_MOUSEBUTTONUP) {
+			bool is_left = (event.button.button == SDL_BUTTON_LEFT);
+			bool is_right = (event.button.button == SDL_BUTTON_RIGHT);
+			bool is_middle = (event.button.button == SDL_BUTTON_MIDDLE);
+
+			GameKeyState *left = &mouse->left;
+			GameKeyState *right = &mouse->right;
+			GameKeyState *middle = &mouse->middle;
+
+			ProcessInputKey(left, !is_left);
+			ProcessInputKey(right, !is_right);
+			ProcessInputKey(middle, !is_middle);
+			continue;
+		}
+
+		if (event.type == SDL_MOUSEBUTTONDOWN) {
+			bool is_left = (event.button.button == SDL_BUTTON_LEFT);
+			bool is_right = (event.button.button == SDL_BUTTON_RIGHT);
+			bool is_middle = (event.button.button == SDL_BUTTON_MIDDLE);
+
+			GameKeyState *left = &mouse->left;
+			GameKeyState *right = &mouse->right;
+			GameKeyState *middle = &mouse->middle;			
+
+			ProcessInputKey(left, is_left);
+			ProcessInputKey(right, is_right);
+			ProcessInputKey(middle, is_middle);			
 		}
 	}
 }

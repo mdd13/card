@@ -9,6 +9,10 @@ struct Entity {
 	int w;
 	int h;
 
+	bool is_grabbed;
+	int mouse_rel_x;
+	int mouse_rel_y;
+
 	SDL_Texture *texture;
 };
 
@@ -42,4 +46,20 @@ bool EntityMouseIn(Entity *entity, GameMouse *mouse) {
 	rect.h = entity->h;
 
 	return SDL_PointInRect(&point, &rect);
+}
+
+void EntityGrab(Entity *entity, GameInput *input) {
+	if (!input->mouse.left.is_down) {
+		entity->is_grabbed = false;
+		entity->mouse_rel_x = -1;
+		entity->mouse_rel_y = -1;
+	} else {
+		entity->is_grabbed = true;
+		if (entity->mouse_rel_x == -1) {
+			entity->mouse_rel_x = input->mouse.x - entity->x;
+			entity->mouse_rel_y = input->mouse.y - entity->y;
+		}
+		entity->x = input->mouse.x - entity->mouse_rel_x;
+		entity->y = input->mouse.y - entity->mouse_rel_y;
+	}
 }
