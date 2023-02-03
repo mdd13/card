@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#define Assert(condition) if (!condition) { fprintf(stderr, "%s:%d:0 %s\n", __FILE__,  __LINE__, SDL_GetError()); exit(1); }
+#define Assert(condition) if (!(condition)) { *(volatile int *)0 = 0; }
 #define GLOBAL static
 #define LOCAL_PERSIST static
 #define ReturnDefer(x) {result = x; goto defer;}
@@ -16,6 +16,7 @@
 #define Kb(byte) ((int64_t)(byte << 10))
 #define Mb(byte) ((int64_t)(Kb(byte) << 10))
 #define Gb(byte) ((int64_t)(Mb(byte) << 10))
+#define GetFromMem(typ, ptr, pad) (typ *)((uint8_t *)ptr + pad)
 
 GLOBAL const char *title = "Card";
 GLOBAL const int32_t window_width = 1280;

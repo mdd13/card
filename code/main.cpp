@@ -6,11 +6,10 @@
 #include "SDL2/SDL_mouse.h"
 #include "game.cpp"
 #include "card.cpp"
-#include "common.h"
+#include "common.cpp"
 
 
 GLOBAL bool running = true;
-
 GLOBAL SDL_Window *window;
 GLOBAL SDL_Renderer *renderer;
 
@@ -104,34 +103,6 @@ void ProcessInput(GameInput *input) {
 	}
 }
 
-void UpdateAndRender(GameInput *input, GameMemory *memory) {
-	if (!memory->initialzed) {
-		memory->initialzed = true;
-		memory->len = Gb(1);
-		memory->base = Alloc(memory->len);
-
-		CardTable *table = (CardTable *) memory->base;
-		CardInit(renderer, table);
-	}
-
-	CardTable *table = (CardTable *) memory->base;
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderClear(renderer);
-
-	CardTableUpdateAndRender(renderer, input, table);
-
-	SDL_Rect rect = {};
-	rect.x = input->mouse.x - 10;
-	rect.y = input->mouse.y - 10;
-	rect.w = 20;
-	rect.h = 20;
-
-	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	SDL_RenderFillRect(renderer, &rect);
-
-	SDL_RenderPresent(renderer);
-}
-
 int main() {
 	int err = SDL_Init(SDL_INIT_EVERYTHING);
 	Assert(!err);
@@ -147,10 +118,13 @@ int main() {
 
 	GameInput input = {};
 	GameMemory memory = {};
+	memory.len = Gb(1);
+	memory.base = Alloc(memory.len);
 
 	while (running) {
 		ProcessInput(&input);
-		UpdateAndRender(&input, &memory);
+
+		GameUpdateAndRender(&input, &memory, renderer);
 	}
 
 	SDL_DestroyWindow(window);

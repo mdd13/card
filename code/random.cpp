@@ -1,7 +1,7 @@
 #pragma once
 
 #include <time.h>
-#include "common.h"
+#include "common.cpp"
 
 // TODO: Update random function
 int RandomInt(int min_num, int max_num) {

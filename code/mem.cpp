@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "common.cpp"
 
 // NOTE: Not implemented yet! So use normal malloc() and free()
 

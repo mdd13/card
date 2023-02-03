@@ -1,63 +1,49 @@
 #pragma once
 /// TODO: Use header file instead
-#include "common.h"
+#include "common.cpp"
 #include "mem.cpp"
-#include "entity.cpp"
+
+#include "game_input.cpp"
+#include "game_entity.cpp"
 #include "game.cpp"
 #include "random.cpp"
+#include "52card.cpp"
 
 #include <string.h>
 
 /// Các loại bài, theo thứ tự:
 ///
 /// - Cơ, Rô, Chuồn, Bích
-enum CardSuit {
-	CARD_HEART,
-	CARD_DIAMOND,
-	CARD_CLUB,
-	CARD_SPADE,
-};
-
-/// TODO: Use macro to generate strings from enum
-const char *CardSuitString[] = {
-	"CARD_HEART",
-	"CARD_DIAMOND",
-	"CARD_CLUB",
-	"CARD_SPADE",
+GLOBAL int CardSuitRank[] = {
+	[CARD_HEART] = 0,
+	[CARD_DIAMOND] = 1,
+	[CARD_CLUB] = 2,
+	[CARD_SPADE] = 3,
 };
 
 /// Giá trị trên các quân bài
-enum CardValue {
-	CARD_2,
-	CARD_A,
-	CARD_K,
-	CARD_Q,
-	CARD_J,
-	CARD_10,
-	CARD_9,
-	CARD_8,
-	CARD_7,
-	CARD_6,
-	CARD_5,
-	CARD_4,
-	CARD_3,
+GLOBAL int CardKeyRank[] = {
+	[CARD_2] = 0,
+	[CARD_A] = 1,
+	[CARD_K] = 2,
+	[CARD_Q] = 3,
+	[CARD_J] = 4,
+	[CARD_10] = 5,
+	[CARD_9] = 6,
+	[CARD_8] = 7,
+	[CARD_7] = 8,
+	[CARD_6] = 9,
+	[CARD_5] = 10,
+	[CARD_4] = 11,
+	[CARD_3] = 12,
 };
 
-const char *CardValueString[] = {
-	"CARD_2",
-	"CARD_A",
-	"CARD_K",
-	"CARD_Q",
-	"CARD_J",
-	"CARD_10",
-	"CARD_9",
-	"CARD_8",
-	"CARD_7",
-	"CARD_6",
-	"CARD_5",
-	"CARD_4",
-	"CARD_3",
-};
+int GetCardRank(Card card) {
+	CardSuit suit = GetCardSuit(card);
+	CardKey key = GetCardKey(card);
+
+	return CardKeyRank[key] * 4 + CardSuitRank[suit];
+}
 
 /// Các nước đi, theo thứ tự:
 ///
@@ -70,9 +56,8 @@ enum CardCom {
 	CARD_COM_QUADS,
 	CARD_COM_SEQUENCE,
 	CARD_COM_SEQUENCE_DOUBLE,
+	CARD_COM_TOTAL,
 };
-
-#define CARD_COM_TOTAL 7
 
 const char *CardComString[] {
 	"CARD_COM_ERR",
@@ -90,24 +75,15 @@ struct CardComResult {
 	int      len;
 };
 
-typedef int Card;
-
-inline CardSuit GetCardSuit(Card card) {
-	return (CardSuit)(card % 4);
-}
-
-inline CardValue GetCardValue(Card card) {
-	return (CardValue)(card / 4);
-}
 
 bool CardsIsSequence(Card *cards, int len) {
-	if (GetCardValue(cards[0]) == CARD_2) {
+	if (GetCardKey(cards[0]) == CARD_2) {
 		return false;
 	}
 
 	for (int i = 1; i < len; ++i) {
-		CardValue v0 = GetCardValue(cards[i - 1]);
-		CardValue v1 = GetCardValue(cards[i]);
+		CardKey v0 = GetCardKey(cards[i - 1]);
+		CardKey v1 = GetCardKey(cards[i]);
 		if (v0 + 1 != v1) {
 			return false;
 		}
@@ -120,15 +96,14 @@ bool CardsIsDoubleSequence(Card *cards, int len) {
 		return false;
 	}
 
-	if (GetCardValue(cards[0]) == CARD_2) {
+	if (GetCardKey(cards[0]) == CARD_2) {
 		return false;
 	}
 
-	bool is_sequence = true;
 	for (int i = 2; i < len; i += 2) {
-		CardValue v0 = GetCardValue(cards[i - 2]);
-		CardValue v1 = GetCardValue(cards[i - 1]);
-		CardValue v2 = GetCardValue(cards[i]);
+		CardKey v0 = GetCardKey(cards[i - 2]);
+		CardKey v1 = GetCardKey(cards[i - 1]);
+		CardKey v2 = GetCardKey(cards[i]);
 		if (v0 != v1 || v1 + 1 != v2) {
 			return false;
 		}
@@ -141,19 +116,19 @@ CardComResult CardCombine(Card *cards, int len) {
 	CardComResult result = {};
 
 	if (len == 1) {
-		CardValue value = GetCardValue(cards[0]);
 		result.com = CARD_COM_SINGLE;
 		result.value = cards[0];
 		ReturnDefer(result);
 	}
 
 	for (int i = 0; i < len - 1; ++i) {
-		Card mn_val = cards[i];
+		int mn_rank = GetCardRank(cards[i]);
 		int mn_idx = i;
 
 		for (int j = i + 1; j < len; ++j) {
-			if (mn_val > cards[j]) {
-				mn_val = cards[j];
+			int rank = GetCardRank(cards[j]);
+			if (mn_rank > rank) {
+				mn_rank = rank;
 				mn_idx = j;
 			}
 		}
@@ -164,8 +139,8 @@ CardComResult CardCombine(Card *cards, int len) {
 	}
 
 	if (len == 2) {
-		if (GetCardValue(cards[0]) == GetCardValue(cards[1])) {
-			CardValue value = GetCardValue(cards[0]);
+		if (GetCardKey(cards[0]) == GetCardKey(cards[1])) {
+			CardKey value = GetCardKey(cards[0]);
 			result.com = CARD_COM_DOUBLE;
 			result.value = cards[0] + value * 4;
 			ReturnDefer(result);
@@ -176,7 +151,7 @@ CardComResult CardCombine(Card *cards, int len) {
 	if (CardsIsSequence(cards, len)) {
 		int sum = cards[0];
 		for (int i = 1; i < len; ++i) {
-			sum += GetCardValue(cards[i]) * 4;
+			sum += GetCardKey(cards[i]) * 4;
 		}
 		result.com = CARD_COM_SEQUENCE;
 		result.value = sum;
@@ -186,7 +161,7 @@ CardComResult CardCombine(Card *cards, int len) {
 	if (CardsIsDoubleSequence(cards, len)) {
 		int sum = cards[0];
 		for (int i = 1; i < len; ++i) {
-			sum += GetCardValue(cards[i]) * 4;
+			sum += GetCardKey(cards[i]) * 4;
 		}
 		result.com = CARD_COM_SEQUENCE_DOUBLE;
 		result.value = sum;
@@ -194,9 +169,9 @@ CardComResult CardCombine(Card *cards, int len) {
 	}
 
 	if (len == 3) {
-		if (GetCardValue(cards[0]) == GetCardValue(cards[1]) &&
-			GetCardValue(cards[1]) == GetCardValue(cards[2])) {
-			CardValue value = GetCardValue(cards[0]);
+		if (GetCardKey(cards[0]) == GetCardKey(cards[1]) &&
+			GetCardKey(cards[1]) == GetCardKey(cards[2])) {
+			CardKey value = GetCardKey(cards[0]);
 			result.com = CARD_COM_TRIPS;
 			result.value = cards[0] +  value * 8;
 			ReturnDefer(result);
@@ -205,10 +180,10 @@ CardComResult CardCombine(Card *cards, int len) {
 	}
 
 	if (len == 4) {
-		if (GetCardValue(cards[0]) == GetCardValue(cards[1]) &&
-			GetCardValue(cards[1]) == GetCardValue(cards[2]) &&
-			GetCardValue(cards[2]) == GetCardValue(cards[3])) {
-			CardValue value = GetCardValue(cards[0]);
+		if (GetCardKey(cards[0]) == GetCardKey(cards[1]) &&
+			GetCardKey(cards[1]) == GetCardKey(cards[2]) &&
+			GetCardKey(cards[2]) == GetCardKey(cards[3])) {
+			CardKey value = GetCardKey(cards[0]);
 
 			result.com =  CARD_COM_QUADS;
 			result.value = cards[0] +  value * 16;
@@ -257,18 +232,18 @@ CardPlayResult CardPlayValue(const CardComResult &r0,
 }
 
 CardPlayResult CardPlaySequenceDouble(const CardComResult &r0,
-										  const CardComResult &r1) {
+									  const CardComResult &r1) {
 	CardPlayResult result;
 
 	if (r1.com == CARD_COM_SINGLE) {
-		if (GetCardValue(r1.value) == CARD_2) {
+		if (GetCardKey(r1.value) == CARD_2) {
 			goto handle_ok;
 		}
 		goto handle_err;
 	}
 
 	if (r1.com == CARD_COM_DOUBLE) {
-		if (GetCardValue(r1.value / r1.len) == CARD_2 && r0.len > 6) {
+		if (GetCardKey(r1.value / r1.len) == CARD_2 && r0.len > 6) {
 			goto handle_ok;
 		}
 		goto handle_err;
@@ -296,18 +271,18 @@ handle_ok:
 }
 
 CardPlayResult CardPlayQuads(const CardComResult &r0,
-								 const CardComResult &r1) {
+							 const CardComResult &r1) {
 	CardPlayResult result;
 
 	if (r1.com == CARD_COM_SINGLE) {
-		if (GetCardValue(r1.value) == CARD_2) {
+		if (GetCardKey(r1.value) == CARD_2) {
 			goto handle_ok;
 		}
 		goto handle_err;
 	}
 
 	if (r1.com == CARD_COM_DOUBLE) {
-		if (GetCardValue(r1.value / r1.len) == CARD_2) {
+		if (GetCardKey(r1.value / r1.len) == CARD_2) {
 			goto handle_ok;
 		}
 		goto handle_err;
@@ -330,27 +305,27 @@ handle_ok:
 /// Tứ quý được chặt heo hoặc đôi heo, 3 đôi thông, tứ quý nhỏ hơn (không cần vòng)
 /// 3 con heo thì không có hàng nào chặt được.
 /// Tứ quý heo (về trắng)
-CardCompareCall card_com_matrix[CARD_COM_TOTAL][CARD_COM_TOTAL];
+CardCompareCall card_com_calls[CARD_COM_TOTAL][CARD_COM_TOTAL];
 
-void InitCardComMatrix() {
+void InitCardComCalls() {
 	for (int i = 0; i < CARD_COM_TOTAL; ++i) {
 		for (int j = 0; j < CARD_COM_TOTAL; ++j) {
-			card_com_matrix[i][j] = 0;
+			card_com_calls[i][j] = 0;
 		}
 	}
 
-	card_com_matrix[CARD_COM_SINGLE][CARD_COM_SINGLE] = &CardPlayValue;
-	card_com_matrix[CARD_COM_DOUBLE][CARD_COM_DOUBLE] = &CardPlayValue;
-	card_com_matrix[CARD_COM_TRIPS][CARD_COM_TRIPS] = &CardPlayValue;
-	card_com_matrix[CARD_COM_QUADS][CARD_COM_QUADS] = &CardPlayValue;
-	card_com_matrix[CARD_COM_SEQUENCE][CARD_COM_SEQUENCE] = &CardPlayValue;
-	card_com_matrix[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_SEQUENCE_DOUBLE] = &CardPlaySequenceDouble;
+	card_com_calls[CARD_COM_SINGLE][CARD_COM_SINGLE] = &CardPlayValue;
+	card_com_calls[CARD_COM_DOUBLE][CARD_COM_DOUBLE] = &CardPlayValue;
+	card_com_calls[CARD_COM_TRIPS][CARD_COM_TRIPS] = &CardPlayValue;
+	card_com_calls[CARD_COM_QUADS][CARD_COM_QUADS] = &CardPlayValue;
+	card_com_calls[CARD_COM_SEQUENCE][CARD_COM_SEQUENCE] = &CardPlayValue;
+	card_com_calls[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_SEQUENCE_DOUBLE] = &CardPlaySequenceDouble;
 
-	card_com_matrix[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_SINGLE] = &CardPlaySequenceDouble;
-	card_com_matrix[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_DOUBLE] = &CardPlaySequenceDouble;
+	card_com_calls[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_SINGLE] = &CardPlaySequenceDouble;
+	card_com_calls[CARD_COM_SEQUENCE_DOUBLE][CARD_COM_DOUBLE] = &CardPlaySequenceDouble;
 
-	card_com_matrix[CARD_COM_QUADS][CARD_COM_SINGLE] = &CardPlayQuads;
-	card_com_matrix[CARD_COM_QUADS][CARD_COM_DOUBLE] = &CardPlayQuads;
+	card_com_calls[CARD_COM_QUADS][CARD_COM_SINGLE] = &CardPlayQuads;
+	card_com_calls[CARD_COM_QUADS][CARD_COM_DOUBLE] = &CardPlayQuads;
 }
 
 CardPlayResult CardPlay(Card *cards_0, int len_0,
@@ -358,7 +333,7 @@ CardPlayResult CardPlay(Card *cards_0, int len_0,
 	CardComResult r0 = CardCombine(cards_0, len_0);
 	CardComResult r1 = CardCombine(cards_1, len_1);
 
-	CardCompareCall call = card_com_matrix[r0.com][r1.com];
+	CardCompareCall call = card_com_calls[r0.com][r1.com];
 	if (!call) {
 		CardPlayResult result = {CARD_PLAY_ERR};
 		return result;
@@ -367,17 +342,17 @@ CardPlayResult CardPlay(Card *cards_0, int len_0,
 	return (*call)(r0, r1);
 }
 
-inline Card CardBuild(CardSuit suit, CardValue value) {
+inline Card CardBuild(CardSuit suit, CardKey value) {
 	return value * 4 + suit;
 }
 
 /// NOTE: Remember to free when done using
 char *CardString(Card card) {
 	CardSuit suit = GetCardSuit(card);
-	CardValue value = GetCardValue(card);
+	CardKey value = GetCardKey(card);
 
 	const char *suit_string = CardSuitString[suit];
-	const char *value_string = CardValueString[value];
+	const char *value_string = CardKeyString[value];
 
 	char *result = (char *)Alloc(strlen(suit_string) + strlen(value_string) + 1);
 
@@ -387,17 +362,25 @@ char *CardString(Card card) {
 }
 
 struct CardTable {
+	bool initialized;
+
 	int last_player_turn;
 	int player_turn;
 	int table_turn;
 	int have_turn[4];
 
-	int    player_cards_len[4];
-	Card   player_cards[4][13];
-	Entity player_entities[4][13];
+	int        player_cards_len[4];
+	Card       player_cards[4][13];
+	GameEntity *player_entities[4][13];
 
 	int table_last_cards[13];
 	int dumping_cards[52];
+
+	GameEntity *drop_area;
+
+	int        grab_cards_len;
+	Card       grab_cards[13];
+	GameEntity *grab_entities[13];
 };
 
 #define CardPng(suit, value) "image/52cards/card-" suit "-" value ".png"
@@ -433,7 +416,7 @@ void CardTextureInit(SDL_Renderer *renderer) {
 }
 
 /// NOTE(): Texture and Table init
-void CardTableInit(CardTable *table) {
+void CardTableInit(CardTable *table, GameEntityPool *gel) {
 	table->last_player_turn = 0;
 	table->player_turn = RandomInt(0, 4);
 	table->table_turn = 0;
@@ -453,28 +436,85 @@ void CardTableInit(CardTable *table) {
 			Card card = deck_cards[j * 4 + i];
 			table->player_cards[i][j] = card;
 
-			Entity new_entity = {};
-			new_entity.x = 0;
-			new_entity.y = 0;
-			new_entity.w = card_width;
-			new_entity.h = card_height;
+			GameEntity *new_entity = GameEntityPoolGet(gel, -1);
 
-			new_entity.texture = card_images[card];
+			new_entity->x = 0;
+			new_entity->y = 0;
+			new_entity->w = card_width;
+			new_entity->h = card_height;
 
+			new_entity->texture = card_images[card];
 			table->player_entities[i][j] = new_entity;
 		}
 	}
+
+	GameEntity *drop_area = GameEntityPoolGet(gel, -1);
+
+	drop_area->w = window_width - (400);
+	drop_area->h = window_height - (400);
+	drop_area->x = (window_width - drop_area->w) / 2;
+	drop_area->y = (window_height - drop_area->h) / 2;
+	table->drop_area = drop_area;
+
+	table->initialized = true;
 }
 
-void CardInit(SDL_Renderer *renderer, CardTable *table) {
+void CardInit(CardTable *table, GameEntityPool *gel, SDL_Renderer *renderer) {
 	if (!card_images[0]) {
 		CardTextureInit(renderer);
 	}
+	GameEntityPoolResize(gel, 53);
+	CardTableInit(table, gel);
+}
 
-	CardTableInit(table);
+int CardListIndex(Card *cards, int len, Card card) {
+	ForRange (i, 0, len) {
+		if (cards[i] == card) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool CardListContains(Card *cards, int len, Card card) {
+	ForRange (i, 0, len) {
+		if (cards[i] == card) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void CardListRemoveIndex(Card *cards, GameEntity **entities, int *len, int idx) {
+	if (idx >= 0) {
+		memmove(cards + idx, cards + idx + 1, (((*len) - idx - 1) * sizeof(Card)));
+		memmove(entities + idx, entities + idx + 1, (((*len) - idx - 1) * sizeof(GameEntity *)));
+	}
+	(*len)--;
+}
+
+void CardListRemove(Card *cards, GameEntity **entities, int *len, Card card) {
+	int idx = CardListIndex(cards, *len, card);
+	return CardListRemoveIndex(cards, entities, len, idx);
+}
+
+void CardRemove(CardTable *table, int player, Card card) {
+	int *len = &table->player_cards_len[player];
+	Card *cards = table->player_cards[player];
+	GameEntity **entities = table->player_entities[player];
+
+	int remove_idx = CardListIndex(cards, *len, card);
+
+	if (remove_idx == -1) {
+		return;
+	}
+
+	CardListRemoveIndex(cards, entities, len, remove_idx);
 }
 
 void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTable *table) {
+	GameMouse *mouse = &input->mouse;
+	
 	// Update player_0's hand
 	{
 		int hand_width = (table->player_cards_len[0] + 1) * (card_width / 2);
@@ -483,12 +523,10 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[0];
 		ForRange (i, 0, len) {
-			Entity *entity = &table->player_entities[0][i];
+			GameEntity *entity = table->player_entities[0][i];
 			if (!entity->is_grabbed) {
 				entity->x = x;
 				entity->y = y;
-			} else {
-				EntityGrab(entity, input);
 			}
 			x = x + card_width / 2;
 		}
@@ -503,13 +541,9 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[1];
 		ForRange (i, 0, len) {
-			Entity *entity = &table->player_entities[1][i];
-			if (!entity->is_grabbed) {
-				entity->x = x;
-				entity->y = y;
-			} else {
-				EntityGrab(entity, input);
-			}
+			GameEntity *entity = table->player_entities[1][i];
+			entity->x = x;
+			entity->y = y;
 			y = y + card_height / 4;
 		}
 	}
@@ -522,13 +556,9 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[2];
 		ForRange (i, 0, len) {
-			Entity *entity = &table->player_entities[2][i];
-			if (!entity->is_grabbed) {
-				entity->x = x;
-				entity->y = y;
-			} else {
-				EntityGrab(entity, input);
-			}
+			GameEntity *entity = table->player_entities[2][i];
+			entity->x = x;
+			entity->y = y;
 			x = x + card_width / 2;
 		}
 	}
@@ -542,13 +572,9 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 		int len = table->player_cards_len[3];
 		ForRange (i, 0, len) {
-			Entity *entity = &table->player_entities[3][i];
-			if (!entity->is_grabbed) {
-				entity->x = x;
-				entity->y = y;				
-			} else {
-				EntityGrab(entity, input);
-			}
+			GameEntity *entity = table->player_entities[3][i];
+			entity->x = x;
+			entity->y = y;
 			y = y + card_height / 4;
 		}
 	}
@@ -558,11 +584,20 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 	ForRange (i, 0, 4) {
 		int len = table->player_cards_len[i];
+		if (len == 1) {
+			GameEntity *entity = table->player_entities[i][0];
+			if (GameEntityMouseIn(entity, &input->mouse)) {
+				hover_i = i;
+				hover_j = 0;
+				continue;
+			}
+		}
+
 		ForRange (j, 0, len - 1) {
-			Entity *entity_0 = &table->player_entities[i][j];
-			Entity *entity_1 = &table->player_entities[i][j+1];
-			bool in0 = EntityMouseIn(entity_0, &input->mouse);
-			bool in1 = EntityMouseIn(entity_1, &input->mouse);
+			GameEntity *entity_0 = table->player_entities[i][j];
+			GameEntity *entity_1 = table->player_entities[i][j+1];
+			bool in0 = GameEntityMouseIn(entity_0, mouse);
+			bool in1 = GameEntityMouseIn(entity_1, mouse);
 			if (in0) {
 				hover_i = i;
 				hover_j = j;
@@ -574,17 +609,66 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 		}
 	}
 
-	if (hover_i >= 0) {
-		Entity *entity = &table->player_entities[hover_i][hover_j];
-		EntityGrab(entity, input);
+	if (!mouse->left.is_down) {
+		int len = table->grab_cards_len;
+		if (len > 0) {
+			GameEntity *entity = table->grab_entities[len-1];
+			if (GameEntityCollsionChecking(entity, table->drop_area)) {
+				while(len-- > 0) {
+					Card card = table->grab_cards[len];
+					CardRemove(table, 0, card);
+				}
+			}
+		}
+
+		ForRange (i, 0, len) {
+			GameEntity *entity = table->grab_entities[i];
+			entity->is_grabbed = false;
+		}
+		table->grab_cards_len = 0;
+	} else {
+		if (hover_i == 0) {
+			Card card = table->player_cards[hover_i][hover_j];
+			GameEntity *entity = table->player_entities[hover_i][hover_j];
+			if (!CardListContains(table->grab_cards, table->grab_cards_len, card)) {
+				entity->mouse_rel_x = input->mouse.x - entity->x;
+				entity->mouse_rel_y = input->mouse.y - entity->y;
+				entity->is_grabbed = true;
+				table->grab_cards[table->grab_cards_len] = card;
+				table->grab_entities[table->grab_cards_len] = entity;
+				table->grab_cards_len++;
+			}
+		}
+
+		int len = table->grab_cards_len;
+		ForRange (i, 0, len) {
+			GameEntity *entity = table->grab_entities[i];
+			entity->x = input->mouse.x - entity->mouse_rel_x;
+			entity->y = input->mouse.y - entity->mouse_rel_y;
+		}
 	}
+
+	int drop_i = -1;
+	int drop_j = -1;
+	ForRange (i, 0, 4) {
+		int len = table->player_cards_len[i];
+		ForRange (j, 0, len) {
+			GameEntity *entity = table->player_entities[i][j];
+			if (GameEntityCollsionChecking(entity, table->drop_area)) {
+				drop_i = i;
+				drop_j = j;
+			}
+		}
+	}
+	GameEntityRender(table->drop_area, renderer, (drop_i != -1));
 
 	/// NOTE(): Render
 	ForRange (i, 0, 4) {
 		int len = table->player_cards_len[i];
 		ForRange (j, 0, len) {
-			Entity *entity = &table->player_entities[i][j];
-			EntityRender(entity, renderer, (i == hover_i) && (j == hover_j));
+			GameEntity *entity = table->player_entities[i][j];
+			bool hl = ((i == hover_i) && (j == hover_j)) || ((i == drop_i) && (j == drop_j));
+			GameEntityRender(entity, renderer, hl);
 		}
 	}
 }
