@@ -94,11 +94,11 @@ void ProcessInput(GameInput *input) {
 
 			GameKeyState *left = &mouse->left;
 			GameKeyState *right = &mouse->right;
-			GameKeyState *middle = &mouse->middle;			
+			GameKeyState *middle = &mouse->middle;
 
 			ProcessInputKey(left, is_left);
 			ProcessInputKey(right, is_right);
-			ProcessInputKey(middle, is_middle);			
+			ProcessInputKey(middle, is_middle);
 		}
 	}
 }
@@ -106,6 +106,11 @@ void ProcessInput(GameInput *input) {
 int main() {
 	int err = SDL_Init(SDL_INIT_EVERYTHING);
 	Assert(!err);
+	int ok = IMG_Init(IMG_INIT_PNG);
+	Assert(ok);
+	err = TTF_Init();
+	Assert(!err);
+	
 
 	window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width, window_height, SDL_WINDOW_OPENGL);
 	Assert(window);

@@ -39,22 +39,15 @@ void GameEntityRender(GameEntity *entity, SDL_Renderer *renderer, bool hightligh
 	}
 }
 
-bool GameEntityPointIn(int x, int y, int w, int h, int px, int py) {
-	SDL_Point point;
-	point.x = px;
-	point.y = py;
-
-	SDL_Rect rect;
-	rect.x = x;
-	rect.y = y;
-	rect.w = w;
-	rect.h = h;
-
-	return SDL_PointInRect(&point, &rect);
+INTERNAL inline bool PointInRect(int px, int py,
+								 int x, int y, int w, int h) {
+	return (px >= x && px < x + w) && (py >= y && py < y + h);
 }
 
 bool GameEntityMouseIn(GameEntity *entity, GameMouse *mouse) {
-	return GameEntityPointIn(entity->x, entity->y, entity->w, entity->h, mouse->x, mouse->y);
+	return PointInRect(mouse->x, mouse->y,
+					   entity->x, entity->y,
+					   entity->w, entity->h);
 }
 
 /// NOTE(): Basic Minkowski-based Collision Detection
@@ -70,7 +63,7 @@ bool GameEntityCollsionChecking(GameEntity *e0, GameEntity *e1) {
 	int w = e1->w + e0->x;
 	int h = e1->h + e0->y;
 
-	return GameEntityPointIn(x, y, w, h, px, py);
+	return PointInRect(px, py, x, y, w, h);
 }
 
 void GameEntityGrab(GameEntity *entity, GameInput *input) {
@@ -98,23 +91,23 @@ struct GameEntityPool {
 	size_t     used;
 };
 
-void GameEntityPoolInit(GameEntityPool *gel) {
-	gel->len = 0;
-	gel->used = 0;
-	gel->initialized = true;
-	memset(gel->data, 0, MAX_ENTITY);
+void GameEntityPoolInit(GameEntityPool *entity_pool) {
+	entity_pool->len = 0;
+	entity_pool->used = 0;
+	entity_pool->initialized = true;
+	memset(entity_pool->data, 0, MAX_ENTITY);
 }
 
-void GameEntityPoolResize(GameEntityPool *gel, size_t len) {
-	gel->len = len;
+void GameEntityPoolResize(GameEntityPool *entity_pool, size_t len) {
+	entity_pool->len = len;
 }
 
-GameEntity *GameEntityPoolGet(GameEntityPool *gel, int idx) {
+GameEntity *GameEntityPoolGet(GameEntityPool *entity_pool, int idx) {
 	if (idx < 0) {
-		Assert(gel->len > gel->used);
-		return &gel->data[gel->used++];
+		Assert(entity_pool->len > entity_pool->used);
+		return &entity_pool->data[entity_pool->used++];
 	}
 
-	Assert(idx < gel->len);
-	return &gel->data[idx];
+	Assert(idx < entity_pool->len);
+	return &entity_pool->data[idx];
 }

@@ -3,6 +3,7 @@
 
 #include "common.cpp"
 #include "game_entity.cpp"
+#include "game_text.cpp"
 #include "game_input.cpp"
 #include "card.cpp"
 
@@ -16,18 +17,18 @@ struct GameMemory {
 void GameUpdateAndRender(GameInput *input,
 						 GameMemory *memory,
 						 SDL_Renderer *renderer) {
-	GameEntityPool *gel = (GameEntityPool *)memory->base;
+	GameEntityPool *entity_pool = (GameEntityPool *)memory->base;
 	CardTable *card_table = GetFromMem(CardTable, memory->base, sizeof(GameEntityPool));
 
-	if (!gel->initialized) {
-		GameEntityPoolInit(gel);
+	if (!entity_pool->initialized) {
+		GameEntityPoolInit(entity_pool);
 	}
 
 	if (!card_table->initialized) {
-		CardInit(card_table, gel, renderer);
+		CardInit(card_table, entity_pool, renderer);
 	}
 
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_SetRenderDrawColor(renderer, 41, 43, 46, 255);
 	SDL_RenderClear(renderer);
 
 	CardTableUpdateAndRender(renderer, input, card_table);

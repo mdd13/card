@@ -3,6 +3,7 @@
 #include "common.cpp"
 #include "mem.cpp"
 
+#include "game_text.cpp"
 #include "game_input.cpp"
 #include "game_entity.cpp"
 #include "game.cpp"
@@ -14,7 +15,7 @@
 /// Các loại bài, theo thứ tự:
 ///
 /// - Cơ, Rô, Chuồn, Bích
-GLOBAL int CardSuitRank[] = {
+GLOBAL int card_suit_rank[] = {
 	[CARD_HEART] = 0,
 	[CARD_DIAMOND] = 1,
 	[CARD_CLUB] = 2,
@@ -22,7 +23,7 @@ GLOBAL int CardSuitRank[] = {
 };
 
 /// Giá trị trên các quân bài
-GLOBAL int CardKeyRank[] = {
+GLOBAL int card_key_rank[] = {
 	[CARD_2] = 0,
 	[CARD_A] = 1,
 	[CARD_K] = 2,
@@ -42,7 +43,7 @@ int GetCardRank(Card card) {
 	CardSuit suit = GetCardSuit(card);
 	CardKey key = GetCardKey(card);
 
-	return CardKeyRank[key] * 4 + CardSuitRank[suit];
+	return card_key_rank[key] * 4 + card_suit_rank[suit];
 }
 
 /// Các nước đi, theo thứ tự:
@@ -59,7 +60,7 @@ enum CardCom {
 	CARD_COM_TOTAL,
 };
 
-const char *CardComString[] {
+const char *card_com_string[] {
 	"CARD_COM_ERR",
 	"CARD_COM_SINGLE",
 	"CARD_COM_DOUBLE",
@@ -207,7 +208,7 @@ enum CardPlayStatus {
 	CARD_PLAY_OK,
 };
 
-const char *CardPlayStatusString[] {
+const char *card_play_result_string[] {
 	"CARD_PLAY_ERR",
 	"CARD_PLAY_OK",
 };
@@ -307,7 +308,7 @@ handle_ok:
 /// Tứ quý heo (về trắng)
 CardCompareCall card_com_calls[CARD_COM_TOTAL][CARD_COM_TOTAL];
 
-void InitCardComCalls() {
+void CardComCallsInit() {
 	for (int i = 0; i < CARD_COM_TOTAL; ++i) {
 		for (int j = 0; j < CARD_COM_TOTAL; ++j) {
 			card_com_calls[i][j] = 0;
@@ -377,12 +378,14 @@ struct CardTable {
 	int dumping_cards[52];
 
 	GameEntity *drop_area;
+	GameText   drop_text;
 
 	int        grab_cards_len;
 	Card       grab_cards[13];
 	GameEntity *grab_entities[13];
 };
 
+#define CardBackImg(n) "image/52cards/card-back" #n ".png"
 #define CardPng(suit, value) "image/52cards/card-" suit "-" value ".png"
 #define CardPng4(value) CardPng("hearts", #value),		\
 		CardPng("diamonds", #value),					\
@@ -405,18 +408,23 @@ const char *CardImgFile[] = {
 	CardPng4(3),
 };
 
-GLOBAL SDL_Texture *card_images[52];
+GLOBAL SDL_Texture *card52_images[52];
+GLOBAL SDL_Texture *card52_back_images[4];
 GLOBAL int32_t card_width = 96;
 GLOBAL int32_t card_height = 144;
 void CardTextureInit(SDL_Renderer *renderer) {
 	for (int i = 0; i < 52; ++i) {
-		card_images[i] = IMG_LoadTexture(renderer, CardImgFile[i]);
-		Assert(card_images[i]);
+		card52_images[i] = IMG_LoadTexture(renderer, CardImgFile[i]);
+		Assert(card52_images[i]);
 	}
+	card52_back_images[0] = IMG_LoadTexture(renderer, CardBackImg(1));
+	card52_back_images[1] = IMG_LoadTexture(renderer, CardBackImg(2));
+	card52_back_images[2] = IMG_LoadTexture(renderer, CardBackImg(3));
+	card52_back_images[3] = IMG_LoadTexture(renderer, CardBackImg(4));
 }
 
 /// NOTE(): Texture and Table init
-void CardTableInit(CardTable *table, GameEntityPool *gel) {
+void CardTableInit(CardTable *table, GameEntityPool *entity_pool) {
 	table->last_player_turn = 0;
 	table->player_turn = RandomInt(0, 4);
 	table->table_turn = 0;
@@ -436,19 +444,24 @@ void CardTableInit(CardTable *table, GameEntityPool *gel) {
 			Card card = deck_cards[j * 4 + i];
 			table->player_cards[i][j] = card;
 
-			GameEntity *new_entity = GameEntityPoolGet(gel, -1);
+			GameEntity *new_entity = GameEntityPoolGet(entity_pool, -1);
 
 			new_entity->x = 0;
 			new_entity->y = 0;
 			new_entity->w = card_width;
 			new_entity->h = card_height;
 
-			new_entity->texture = card_images[card];
+			if (i == 0) {
+				new_entity->texture = card52_images[card];
+			} else {
+				new_entity->texture = card52_back_images[0];
+			}
+
 			table->player_entities[i][j] = new_entity;
 		}
 	}
 
-	GameEntity *drop_area = GameEntityPoolGet(gel, -1);
+	GameEntity *drop_area = GameEntityPoolGet(entity_pool, -1);
 
 	drop_area->w = window_width - (400);
 	drop_area->h = window_height - (400);
@@ -456,15 +469,23 @@ void CardTableInit(CardTable *table, GameEntityPool *gel) {
 	drop_area->y = (window_height - drop_area->h) / 2;
 	table->drop_area = drop_area;
 
+	GameText *drop_text = &table->drop_text;
+	drop_text->x = drop_area->x;
+	drop_text->y = drop_area->y;
+	drop_text->data = (char *)"...";
+	GameFontInit(&drop_text->font, "font/LiberationMono-Regular.ttf", 24);
+
 	table->initialized = true;
 }
 
-void CardInit(CardTable *table, GameEntityPool *gel, SDL_Renderer *renderer) {
-	if (!card_images[0]) {
+void CardInit(CardTable *table, GameEntityPool *entity_pool, SDL_Renderer *renderer) {
+	if (!card52_images[0]) {
 		CardTextureInit(renderer);
 	}
-	GameEntityPoolResize(gel, 53);
-	CardTableInit(table, gel);
+
+	CardComCallsInit();
+	GameEntityPoolResize(entity_pool, 53);
+	CardTableInit(table, entity_pool);
 }
 
 int CardListIndex(Card *cards, int len, Card card) {
@@ -512,9 +533,61 @@ void CardRemove(CardTable *table, int player, Card card) {
 	CardListRemoveIndex(cards, entities, len, remove_idx);
 }
 
+void CardTableTryRelaseGrab(CardTable *table) {
+	int len = table->grab_cards_len;
+	if (len > 0) {
+		GameEntity *entity = table->grab_entities[len-1];
+		bool in_drop_area = GameEntityCollsionChecking(entity, table->drop_area);
+		if (in_drop_area) {
+			CardComResult combine_result = CardCombine(table->grab_cards, len);
+			GameTextUpdateText(
+				&table->drop_text,
+				(char *)card_com_string[combine_result.com]
+				);
+			
+			while(len-- > 0) {
+				Card card = table->grab_cards[len];
+				CardRemove(table, 0, card);
+			}
+		}
+	}
+
+	ForRange (i, 0, len) {
+		GameEntity *entity = table->grab_entities[i];
+		entity->is_grabbed = false;
+	}
+
+	table->grab_cards_len = 0;
+}
+
+void CardTableTryGrab(CardTable *table,
+					  GameInput *input,
+					  int hover_i,
+					  int hover_j) {
+	if (hover_i == 0) {
+		Card card = table->player_cards[hover_i][hover_j];
+		GameEntity *entity = table->player_entities[hover_i][hover_j];
+		if (!CardListContains(table->grab_cards, table->grab_cards_len, card)) {
+			entity->mouse_rel_x = input->mouse.x - entity->x;
+			entity->mouse_rel_y = input->mouse.y - entity->y;
+			entity->is_grabbed = true;
+			table->grab_cards[table->grab_cards_len] = card;
+			table->grab_entities[table->grab_cards_len] = entity;
+			table->grab_cards_len++;
+		}
+	}
+
+	int len = table->grab_cards_len;
+	ForRange (i, 0, len) {
+		GameEntity *entity = table->grab_entities[i];
+		entity->x = input->mouse.x - entity->mouse_rel_x;
+		entity->y = input->mouse.y - entity->mouse_rel_y;
+	}
+}
+
 void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTable *table) {
 	GameMouse *mouse = &input->mouse;
-	
+
 	// Update player_0's hand
 	{
 		int hand_width = (table->player_cards_len[0] + 1) * (card_width / 2);
@@ -610,42 +683,9 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 	}
 
 	if (!mouse->left.is_down) {
-		int len = table->grab_cards_len;
-		if (len > 0) {
-			GameEntity *entity = table->grab_entities[len-1];
-			if (GameEntityCollsionChecking(entity, table->drop_area)) {
-				while(len-- > 0) {
-					Card card = table->grab_cards[len];
-					CardRemove(table, 0, card);
-				}
-			}
-		}
-
-		ForRange (i, 0, len) {
-			GameEntity *entity = table->grab_entities[i];
-			entity->is_grabbed = false;
-		}
-		table->grab_cards_len = 0;
+		CardTableTryRelaseGrab(table);
 	} else {
-		if (hover_i == 0) {
-			Card card = table->player_cards[hover_i][hover_j];
-			GameEntity *entity = table->player_entities[hover_i][hover_j];
-			if (!CardListContains(table->grab_cards, table->grab_cards_len, card)) {
-				entity->mouse_rel_x = input->mouse.x - entity->x;
-				entity->mouse_rel_y = input->mouse.y - entity->y;
-				entity->is_grabbed = true;
-				table->grab_cards[table->grab_cards_len] = card;
-				table->grab_entities[table->grab_cards_len] = entity;
-				table->grab_cards_len++;
-			}
-		}
-
-		int len = table->grab_cards_len;
-		ForRange (i, 0, len) {
-			GameEntity *entity = table->grab_entities[i];
-			entity->x = input->mouse.x - entity->mouse_rel_x;
-			entity->y = input->mouse.y - entity->mouse_rel_y;
-		}
+		CardTableTryGrab(table, input, hover_i, hover_j);
 	}
 
 	int drop_i = -1;
@@ -668,7 +708,16 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 		ForRange (j, 0, len) {
 			GameEntity *entity = table->player_entities[i][j];
 			bool hl = ((i == hover_i) && (j == hover_j)) || ((i == drop_i) && (j == drop_j));
+
+			if (i != 0) {
+				LOCAL_PERSIST int back_idx = 0;
+				back_idx = (back_idx + 1) % 8000;
+				entity->texture = card52_back_images[back_idx / 2000];
+			}
+
 			GameEntityRender(entity, renderer, hl);
 		}
+
+		GameTextRender(&table->drop_text, renderer, 0xffffff);
 	}
 }

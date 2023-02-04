@@ -2,12 +2,14 @@
 
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
+#include "SDL2/SDL_ttf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
 #define Assert(condition) if (!(condition)) { *(volatile int *)0 = 0; }
+#define INTERNAL static
 #define GLOBAL static
 #define LOCAL_PERSIST static
 #define ReturnDefer(x) {result = x; goto defer;}
