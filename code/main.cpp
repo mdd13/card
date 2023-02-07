@@ -21,6 +21,8 @@ void ProcessInputKey(GameKeyState *state, bool is_down) {
 
 void ProcessInput(GameInput *input) {
 	GameMouse *mouse = &input->mouse;
+	GameController *controller = &input->controller;
+	
 	SDL_GetMouseState(&mouse->x, &mouse->y);
 
 	SDL_Event event;
@@ -38,15 +40,10 @@ void ProcessInput(GameInput *input) {
 			bool is_left = (scancode == SDL_SCANCODE_A) || (scancode == SDL_SCANCODE_LEFT);
 			bool is_right = (scancode == SDL_SCANCODE_D) || (scancode == SDL_SCANCODE_RIGHT);
 
-			GameKeyState *up = &input->controller.up;
-			GameKeyState *down = &input->controller.down;
-			GameKeyState *left = &input->controller.left;
-			GameKeyState *right = &input->controller.right;
-
-			ProcessInputKey(up, !is_up);
-			ProcessInputKey(down, !is_down);
-			ProcessInputKey(left, !is_left);
-			ProcessInputKey(right, !is_right);
+			ProcessInputKey(&controller->up, !is_up);
+			ProcessInputKey(&controller->down, !is_down);
+			ProcessInputKey(&controller->left, !is_left);
+			ProcessInputKey(&controller->right, !is_right);
 
 			continue;
 		}
@@ -59,15 +56,11 @@ void ProcessInput(GameInput *input) {
 			bool is_left = (scancode == SDL_SCANCODE_A) || (scancode == SDL_SCANCODE_LEFT);
 			bool is_right = (scancode == SDL_SCANCODE_D) || (scancode == SDL_SCANCODE_RIGHT);
 
-			GameKeyState *up = &input->controller.up;
-			GameKeyState *down = &input->controller.down;
-			GameKeyState *left = &input->controller.left;
-			GameKeyState *right = &input->controller.right;
 
-			ProcessInputKey(up, is_up);
-			ProcessInputKey(down, is_down);
-			ProcessInputKey(left, is_left);
-			ProcessInputKey(right, is_right);
+			ProcessInputKey(&controller->up, is_up);
+			ProcessInputKey(&controller->down, is_down);
+			ProcessInputKey(&controller->left, is_left);
+			ProcessInputKey(&controller->right, is_right);
 
 			continue;
 		}
@@ -77,13 +70,9 @@ void ProcessInput(GameInput *input) {
 			bool is_right = (event.button.button == SDL_BUTTON_RIGHT);
 			bool is_middle = (event.button.button == SDL_BUTTON_MIDDLE);
 
-			GameKeyState *left = &mouse->left;
-			GameKeyState *right = &mouse->right;
-			GameKeyState *middle = &mouse->middle;
-
-			ProcessInputKey(left, !is_left);
-			ProcessInputKey(right, !is_right);
-			ProcessInputKey(middle, !is_middle);
+			ProcessInputKey(&mouse->left, !is_left);
+			ProcessInputKey(&mouse->right, !is_right);
+			ProcessInputKey(&mouse->middle, !is_middle);
 			continue;
 		}
 
@@ -92,13 +81,9 @@ void ProcessInput(GameInput *input) {
 			bool is_right = (event.button.button == SDL_BUTTON_RIGHT);
 			bool is_middle = (event.button.button == SDL_BUTTON_MIDDLE);
 
-			GameKeyState *left = &mouse->left;
-			GameKeyState *right = &mouse->right;
-			GameKeyState *middle = &mouse->middle;
-
-			ProcessInputKey(left, is_left);
-			ProcessInputKey(right, is_right);
-			ProcessInputKey(middle, is_middle);
+			ProcessInputKey(&mouse->left, is_left);
+			ProcessInputKey(&mouse->right, is_right);
+			ProcessInputKey(&mouse->middle, is_middle);
 		}
 	}
 }
@@ -139,7 +124,7 @@ int main() {
 }
 
 #ifdef WINDOWS
-int WinMain() {
+ int WinMain() {
 	return main();
 }
 #endif

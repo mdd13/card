@@ -16,6 +16,8 @@ struct GameFont {
 struct GameText {
 	int x;
 	int y;
+	int w;
+	int h;
 	char     *data;
 	GameFont font;
 };
@@ -47,6 +49,10 @@ void GameTextRender(GameText *game_text, SDL_Renderer *renderer, int color) {
 	Assert(surface);
 
 	SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+	game_text->w = surface->w;
+	game_text->h = surface->h;	
+	
 	SDL_Rect rect = {};
 	rect.x = game_text->x;
 	rect.y = game_text->y;

@@ -2,10 +2,12 @@
 
 
 #include "common.cpp"
-#include "game_entity.cpp"
+#include "game_layout.cpp"
 #include "game_text.cpp"
 #include "game_input.cpp"
-#include "card.cpp"
+
+#include "card_table.cpp"
+
 
 struct GameMemory {
 	bool initialzed;
@@ -17,15 +19,17 @@ struct GameMemory {
 void GameUpdateAndRender(GameInput *input,
 						 GameMemory *memory,
 						 SDL_Renderer *renderer) {
-	GameEntityPool *entity_pool = (GameEntityPool *)memory->base;
-	CardTable *card_table = GetFromMem(CardTable, memory->base, sizeof(GameEntityPool));
+	GameLayoutPool *layout_pool = (GameLayoutPool *)memory->base;
+	CardTable *card_table = GetFromMem(CardTable, memory->base, sizeof(GameLayoutPool));
 
-	if (!entity_pool->initialized) {
-		GameEntityPoolInit(entity_pool);
+	if (!layout_pool->initialized) {
+		GameLayoutPoolInit(layout_pool);
 	}
 
 	if (!card_table->initialized) {
-		CardInit(card_table, entity_pool, renderer);
+		// NOTE: 52 cards, 1 drop area, 2 buttons
+		GameLayoutPoolExpand(layout_pool, 55);
+		CardTableInit(card_table, layout_pool, renderer);
 	}
 
 	SDL_SetRenderDrawColor(renderer, 41, 43, 46, 255);
