@@ -6,8 +6,8 @@
 #include "game_image.cpp"
 
 void GameDrawImage(GameImage *image,
-				   int rx, int ry,
-				   int rw, int rh) {
+				   i32 rx, i32 ry,
+				   i32 rw, i32 rh) {
 	SDL_Rect rect = {};
 	rect.x = rx;
 	rect.y = ry;
@@ -17,17 +17,36 @@ void GameDrawImage(GameImage *image,
 	SDL_RenderCopy(global_renderer, image->sdl_texture, 0, &rect);
 }
 
+void GameDrawImageRotate(GameImage *image,
+						 i32 rx, i32 ry,
+						 i32 rw, i32 rh, f64 angle) {
+	SDL_Rect rect = {};
+	rect.x = rx;
+	rect.y = ry;
+	rect.w = rw;
+	rect.h = rh;
+
+	SDL_RenderCopyEx(global_renderer, image->sdl_texture, 0,
+					 &rect, angle, 0, SDL_FLIP_NONE);
+}
+
 void GameDrawText(GameFont *font,
 				  char *text,
-				  int rx, int ry,
-				  int color) {
+				  i32 rx, i32 ry,
+				  i32 color) {
+	if (!text) {
+		return;
+	}
+	
 	SDL_Color sdl_color = {};
-	sdl_color.r = (uint8_t)((color & 0xff0000) >> 24);
-	sdl_color.g = (uint8_t)((color & 0x00ff00) >> 16);
-	sdl_color.b = (uint8_t)((color & 0x0000ff) >> 8);
-	sdl_color.a = (uint8_t)((color & 0x0000ff) >> 0);
+    sdl_color.r = (u8)((color & 0xff000000) >> 24);
+	sdl_color.g = (u8)((color & 0x00ff0000) >> 16);
+	sdl_color.b = (u8)((color & 0x0000ff00) >> 8);
+	sdl_color.a = (u8)((color & 0x000000ff) >> 0);
 
 	SDL_Surface *surface = TTF_RenderUTF8_Solid(font->data, text, sdl_color);
+	Assert(surface);
+
 	SDL_Rect rect = {};
 	rect.x = rx;
 	rect.y = ry;
@@ -40,19 +59,19 @@ void GameDrawText(GameFont *font,
 	SDL_DestroyTexture(texture);
 }
 
-void GameDrawColor(int color,
-				   int rx, int ry,
-				   int rw, int rh) {
+void GameDrawColor(i32 color,
+				   i32 rx, i32 ry,
+				   i32 rw, i32 rh) {
 	SDL_Rect rect = {};
 	rect.x = rx;
 	rect.y = ry;
 	rect.w = rw;
 	rect.h = rh;
 
-	uint8_t r = (uint8_t)((color & 0xff0000) >> 24);
-	uint8_t g = (uint8_t)((color & 0x00ff00) >> 16);
-	uint8_t b = (uint8_t)((color & 0x0000ff) >> 8);
-	uint8_t a = (uint8_t)((color & 0x0000ff) >> 0);
+	u8 r = (u8)((color & 0xff000000) >> 24);
+	u8 g = (u8)((color & 0x00ff0000) >> 16);
+	u8 b = (u8)((color & 0x0000ff00) >> 8);
+	u8 a = (u8)((color & 0x000000ff) >> 0);
 
 	SDL_SetRenderDrawColor(global_renderer, r, g, b, a);
 	SDL_RenderFillRect(global_renderer, &rect);

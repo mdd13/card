@@ -3,7 +3,8 @@
 #include "common.cpp"
 
 struct GameKeyState {
-	bool is_down;
+	b32 is_down;
+	i32  half_transition_count;
 };
 
 struct GameController {
@@ -14,8 +15,8 @@ struct GameController {
 };
 
 struct GameMouse {
-	int32_t x;
-	int32_t y;
+	i32 x;
+	i32 y;
 
 	GameKeyState left;
 	GameKeyState right;
@@ -23,8 +24,8 @@ struct GameMouse {
 };
 
 struct GameScroll {
-	bool is_up;
-	bool is_down;
+	b32 is_up;
+	b32 is_down;
 };
 
 struct GameInput {

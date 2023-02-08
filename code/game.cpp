@@ -12,10 +12,10 @@
 
 
 struct GameMemory {
-	bool initialzed;
+	b32 initialzed;
 
-	size_t len;
-	void   *base;
+	usize len;
+	void  *base;
 };
 
 void GameUpdateAndRender(GameInput *input,

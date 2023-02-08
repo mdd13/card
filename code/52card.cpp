@@ -51,7 +51,7 @@ const char *CardKeyString[] = {
 	"CARD_2",
 };
 
-typedef int Card;
+typedef i32 Card;
 
 inline CardSuit GetCardSuit(Card card) {
 	return (CardSuit)(card % 4);
@@ -87,15 +87,14 @@ const char *CardImgFile[] = {
 GLOBAL bool card52_image_initialized;
 GLOBAL GameImage card52_images[52];
 GLOBAL GameImage card52_back_images[4];
-GLOBAL int32_t card_width = 96;
-GLOBAL int32_t card_height = 144;
-
+GLOBAL i32 card_width = 96;
+GLOBAL i32 card_height = 144;
 void CardImagesInit() {
 	if (card52_image_initialized) {
 		return;
 	}
 	
-	for (int i = 0; i < 52; ++i) {
+	for (i32 i = 0; i < 52; ++i) {
 		GameImageLoadFile(&card52_images[i], CardImgFile[i]);
 	}
 	GameImageLoadFile(&card52_back_images[0], CardBackImg(1));
@@ -104,4 +103,64 @@ void CardImagesInit() {
 	GameImageLoadFile(&card52_back_images[3], CardBackImg(4));
 
 	card52_image_initialized = true;
+}
+
+inline Card CardBuild(CardSuit suit, CardKey value) {
+	return value * 4 + suit;
+}
+
+/// NOTE: Remember to free when done using
+char *CardString(Card card) {
+	CardSuit suit = GetCardSuit(card);
+	CardKey value = GetCardKey(card);
+
+	const char *suit_string = CardSuitString[suit];
+	const char *value_string = CardKeyString[value];
+
+	char *result = (char *)Alloc(strlen(suit_string) + strlen(value_string) + 1);
+
+	sprintf(result, "%s %s", suit_string, value_string);
+	return result;
+}
+
+i32 CardListIndex(Card *cards, i32 len, Card card) {
+	ForRange (i, 0, len) {
+		if (cards[i] == card) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool CardListContains(Card *cards, i32 len, Card card) {
+	ForRange (i, 0, len) {
+		if (cards[i] == card) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void CardListRemoveIndex(Card *cards, UiLayout *layouts, i32 *len, i32 idx) {
+	if (idx >= 0) {
+		memmove(cards + idx, cards + idx + 1, (((*len) - idx - 1) * sizeof(Card)));
+		memmove(layouts + idx, layouts + idx + 1, (((*len) - idx - 1) * sizeof(UiLayout)));
+	}
+	(*len)--;
+}
+
+void CardListRemove(Card *cards, UiLayout *layouts, i32 *len, Card card) {
+	i32 idx = CardListIndex(cards, *len, card);
+	return CardListRemoveIndex(cards, layouts, len, idx);
+}
+
+void CardDraw(UiLayout *layout, Card card) {
+	UiLayoutDrawImage(layout, &card52_images[card]);
+}
+
+void CardBackDraw(UiLayout *layout) {
+	// LOCAL_PERSIST i32 t = 0;
+	// UiLayoutDrawImage(layout, &card52_back_images[t / 1000]);
+	// t = (t + 1) % 4000;
+	UiLayoutDrawImage(layout, &card52_back_images[0]);
 }

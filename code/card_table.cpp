@@ -3,43 +3,28 @@
 #include "card.cpp"
 #include "common.cpp"
 
-void DrawCard(UiLayout *layout, Card card) {
-	UiLayoutDrawImage(layout, &card52_images[card]);
-}
-
-void DrawCardBack(UiLayout *layout) {
-	LOCAL_PERSIST int t = 0;
-	UiLayoutDrawImage(layout, &card52_back_images[t]);
-	t = (t + 1) % 4;
-}
-
 struct CardTable {
 	bool initialized;
 
-	int last_player_turn;
-	int player_turn;
-	int table_turn;
-	int have_turn[4];
+	i32 last_player_turn;
+	i32 player_turn;
+	i32 table_turn;
+	i32 have_turn[4];
 
-	int      player_cards_len[4];
+	i32      player_cards_len[4];
 	Card     player_cards[4][13];
 	UiLayout player_cards_layout[4][13];
 
-	int table_last_cards[13];
-	int dumping_cards[52];
+	i32 table_last_cards[13];
+	i32 dumping_cards[52];
 
 	UiLayout drop_layout;
 	UiLayout drop_text_layout;
 	GameFont drop_font;
 	char     *drop_text;
 
-	int       select_cards_len;
-	Card      select_cards[13];
-	UiLayout  select_cards_layout[13];
-
-	int        grab_cards_len;
-	Card       grab_cards[13];
-	UiLayout   grab_cards_layout[4][13];	
+	i32  select_cards_len;
+	Card select_cards[13];
 };
 
 /// NOTE(): Texture and Table init
@@ -47,21 +32,21 @@ void CardTableInit(CardTable *table) {
 	CardImagesInit();
 
 	table->last_player_turn = 0;
-	table->player_turn = RandomInt(0, 4);
+	table->player_turn = RandomI32(0, 4);
 	table->table_turn = 0;
-	for (int i = 0; i < 4; ++i) {
+	for (i32 i = 0; i < 4; ++i) {
 		table->have_turn[i] = 1;
 	}
 
 	Card deck_cards[52];
-	for (int i = 0; i < 52; i++) {
+	for (i32 i = 0; i < 52; i++) {
 		deck_cards[i] = i;
 	}
 
-	ShuffleIntArray(deck_cards, 52);
-	for (int i = 0; i < 4; ++i) {
+	ShuffleI32Array(deck_cards, 52);
+	for (i32 i = 0; i < 4; ++i) {
 		table->player_cards_len[i] = 13;
-		for (int j = 0; j < 13; ++j) {
+		for (i32 j = 0; j < 13; ++j) {
 			Card card = deck_cards[j * 4 + i];
 			table->player_cards[i][j] = card;
 
@@ -76,7 +61,6 @@ void CardTableInit(CardTable *table) {
 	}
 
 	UiLayout drop_layout = {};
-
 	drop_layout.w = window_width - (400);
 	drop_layout.h = window_height - (400);
 	drop_layout.x = (window_width - drop_layout.w) / 2;
@@ -93,113 +77,189 @@ void CardTableInit(CardTable *table) {
 	table->initialized = true;
 }
 
-void CardTableRemoveCard(CardTable *table, int player, Card card) {
-	int *len = &table->player_cards_len[player];
+void CardTableRemoveCard(CardTable *table, i32 player, Card card) {
+	i32 len = table->player_cards_len[player];
 	Card *cards = table->player_cards[player];
 	UiLayout *layouts = table->player_cards_layout[player];
 
-	int remove_idx = CardListIndex(cards, *len, card);
+	i32 remove_idx = CardListIndex(cards, len, card);
 
 	if (remove_idx == -1) {
 		return;
 	}
 
-	CardListRemoveIndex(cards, layouts, len, remove_idx);
+	RemoveIndex(cards, len, remove_idx);
+	RemoveIndex(layouts, len, remove_idx);
+	table->player_cards_len[player]--;
 }
 
-void CardTableTryRelaseGrab(CardTable *table) {
-	int len = table->grab_cards_len;
-	if (len > 0) {
-		UiLayout *layout = table->grab_cards_layout[len-1];
-		bool in_drop_layout = UiLayoutCollsionChecking(layout, &table->drop_layout);
-		if (in_drop_layout) {
-			CardComResult combine_result = CardCombine(table->grab_cards, len);
-			table->drop_text = (char *)card_com_string[combine_result.com];
-			while(len-- > 0) {
-				Card card = table->grab_cards[len];
-				CardTableRemoveCard(table, 0, card);
-			}
-		}
+void CardTablePlaySelect(CardTable *table) {
+	i32 len = table->select_cards_len;
+
+	CardComResult combine_result = CardCombine(table->select_cards, len);
+
+	table->drop_text = (char *)card_com_string[combine_result.com];
+
+	if (combine_result.com == CARD_COM_ERR) {
+		return;
 	}
 
 	ForRange (i, 0, len) {
-		UiLayout *layout = table->grab_cards_layout[i];
-		layout->is_grabbed = false;
+		CardTableRemoveCard(table, 0, table->select_cards[i]);
 	}
-
-	table->grab_cards_len = 0;
+	table->select_cards_len = 0;
 }
 
-void CardTableTryGrab(CardTable *table,
-					  GameInput *input,
-					  int hover_i,
-					  int hover_j) {
-	if (hover_i == 0) {
-		Card card = table->player_cards[hover_i][hover_j];
-		UiLayout *layout = &table->player_cards_layout[hover_i][hover_j];
-		if (!CardListContains(table->grab_cards, table->grab_cards_len, card)) {
-			layout->mouse_rel_x = input->mouse.x - layout->x;
-			layout->mouse_rel_y = input->mouse.y - layout->y;
-			layout->is_grabbed = true;
-			table->grab_cards[table->grab_cards_len] = card;
-			table->grab_cards_layout[table->grab_cards_len] = *layout;
-			table->grab_cards_len++;
-		}
+void CardTableTryReleaseDrag(CardTable *table, GameMouse *mouse) {
+	i32 len = table->select_cards_len;
+	if (len == 0) {
+		return;
 	}
 
-	int len = table->grab_cards_len;
 	ForRange (i, 0, len) {
-		UiLayout *layout = table->grab_images[i];
-		layout->x = input->mouse.x - layout->mouse_rel_x;
-		layout->y = input->mouse.y - layout->mouse_rel_y;
+		i32 idx = CardListIndex(table->player_cards[0],
+								table->player_cards_len[0],
+								table->select_cards[i]);
+		UiLayoutReleaseDrag(&table->player_cards_layout[0][idx]);
+	}
+
+	bool in_drop_area = UiLayoutMouseIn(&table->drop_layout, mouse);
+
+	if (in_drop_area) {
+		CardTablePlaySelect(table);
+	}
+
+	table->select_cards_len = 0;
+}
+
+void CardTableTryDrag(CardTable *table,
+					  GameMouse *mouse,
+					  Card card) {
+	if (table->select_cards_len == 0 && card == -1) {
+		return;
+	}
+
+	bool card_selected = CardListContains(
+		table->select_cards,
+		table->select_cards_len,
+		card
+	);
+	if (!card_selected) {
+		table->select_cards[table->select_cards_len] = card;
+		table->select_cards_len++;
+	}
+
+	i32 len = table->select_cards_len;
+	ForRange (i, 0, len) {
+		i32 idx = CardListIndex(table->player_cards[0],
+							table->player_cards_len[0],
+							table->select_cards[i]);
+		UiLayoutDrag(&table->player_cards_layout[0][idx], mouse);
 	}
 }
 
-void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTable *table) {
+void CardTableTryUnselect(CardTable *table, GameMouse *mouse) {
+	i32 len = table->select_cards_len;
+	if (len == 0) {
+		return;
+	}
+
+	ForRange (i, 0, len) {
+		i32 idx = CardListIndex(table->player_cards[0],
+								table->player_cards_len[0],
+								table->select_cards[i]);
+		UiLayoutUnselect(&table->player_cards_layout[0][idx]);
+	}
+
+	bool in_drop_area = UiLayoutMouseIn(&table->drop_layout, mouse);
+
+	if (in_drop_area) {
+		CardTablePlaySelect(table);
+	}
+
+	table->select_cards_len = 0;
+}
+
+void CardTableTrySelect(CardTable *table,
+						GameMouse *mouse,
+						Card card) {
+	if (card == -1) {
+		return;
+	}
+	i32 idx = CardListIndex(table->player_cards[0],
+							table->player_cards_len[0],
+							card);
+	bool card_selected = CardListContains(table->select_cards,
+										  table->select_cards_len,
+										  card);
+	if (!card_selected) {
+		table->select_cards[table->select_cards_len] = card;
+		table->select_cards_len++;
+		UiLayoutSelect(&table->player_cards_layout[0][idx]);
+	} else {
+		RemoveIndex(table->select_cards, table->select_cards_len, idx);
+		table->select_cards_len--;
+		UiLayoutUnselect(&table->player_cards_layout[0][idx]);
+	}
+}
+
+void CardTableUpdateAndRender(SDL_Renderer *renderer,
+							  GameInput *input,
+							  CardTable *table) {
 	GameMouse *mouse = &input->mouse;
 
 	// Update player_0's hand
 	{
-		int hand_width = (table->player_cards_len[0] + 1) * (card_width / 2);
-		int x = (window_width - hand_width) / 2;
-		int y = window_height - card_height - 40;
+		i32 hand_width = (table->player_cards_len[0])
+			* (card_width / 4 * 3)
+			+ (card_width / 4);
 
-		int len = table->player_cards_len[0];
+		i32 x = (window_width - hand_width) / 2;
+		i32 y = window_height - card_height - 40;
+
+		i32 len = table->player_cards_len[0];
 		ForRange (i, 0, len) {
-			UiLayout *layout = table->player_images[0][i];
-			if (!layout->is_grabbed) {
-				layout->x = x;
-				layout->y = y;
+			UiLayout *layout = &table->player_cards_layout[0][i];
+			// if (!UiLayoutIsDrag(layout)) {
+			// 	layout->x = x;
+			// 	layout->y = y;
+			// }
+			layout->x = x;
+			layout->y = y;
+			if (UiLayoutIsSelect(layout)) {
+				layout->y -= 20;
 			}
-			x = x + card_width / 2;
+
+			x = x + (card_width / 4 * 3);
 		}
 	}
 
 	/// Update player_1's hand
 	{
-		int hand_height = (table->player_cards_len[1]) * (card_height / 4)
-			+ ((card_height / 4) * 3);
-		int x = (window_width - card_width - 40);
-		int y = (window_height - hand_height) / 2;
+		i32 hand_height = (table->player_cards_len[1])
+			* (card_height / 16)
+			+ ((card_height / 16) * 15);
+		i32 x = (window_width - card_width - 40);
+		i32 y = (window_height - hand_height) / 2;
 
-		int len = table->player_cards_len[1];
+		i32 len = table->player_cards_len[1];
 		ForRange (i, 0, len) {
-			UiLayout *layout = table->player_images[1][i];
+			UiLayout *layout = &table->player_cards_layout[1][i];
 			layout->x = x;
 			layout->y = y;
-			y = y + card_height / 4;
+			y = y + card_height / 15;
 		}
 	}
 
 	// Update player_2's hand
 	{
-		int hand_width = (table->player_cards_len[2] + 1) * (card_width / 2);
-		int x = (window_width - hand_width) / 2;
-		int y = 20;
+		i32 hand_width = (table->player_cards_len[2] + 1) * (card_width / 2);
+		i32 x = (window_width - hand_width) / 2;
+		i32 y = 20;
 
-		int len = table->player_cards_len[2];
+		i32 len = table->player_cards_len[2];
 		ForRange (i, 0, len) {
-			UiLayout *layout = table->player_images[2][i];
+			UiLayout *layout = &table->player_cards_layout[2][i];
 			layout->x = x;
 			layout->y = y;
 			x = x + card_width / 2;
@@ -208,86 +268,78 @@ void CardTableUpdateAndRender(SDL_Renderer *renderer, GameInput *input, CardTabl
 
 	/// Update player_3's hand
 	{
-		int hand_height = (table->player_cards_len[3]) * (card_height / 4)
-			+ ((card_height / 4) * 3);
-		int x = 40;
-		int y = (window_height - hand_height) / 2;
+		i32 hand_height = (table->player_cards_len[3])
+			* (card_height / 16)
+			+ ((card_height / 16) * 15);
+		i32 x = 40;
+		i32 y = (window_height - hand_height) / 2;
 
-		int len = table->player_cards_len[3];
+		i32 len = table->player_cards_len[3];
 		ForRange (i, 0, len) {
-			UiLayout *layout = table->player_images[3][i];
+			UiLayout *layout = &table->player_cards_layout[3][i];
 			layout->x = x;
 			layout->y = y;
-			y = y + card_height / 4;
+			y = y + card_height / 15;
 		}
 	}
 
-	int hover_i = -1;
-	int hover_j = -1;
-
-	ForRange (i, 0, 4) {
-		int len = table->player_cards_len[i];
+	Card hover_card = -1;
+	{
+		i32 len = table->player_cards_len[0];
 		if (len == 1) {
-			UiLayout *layout = table->player_images[i][0];
+			UiLayout *layout = &table->player_cards_layout[0][0];
 			if (UiLayoutMouseIn(layout, &input->mouse)) {
-				hover_i = i;
-				hover_j = 0;
-				continue;
+				hover_card = table->player_cards[0][0];
 			}
-		}
-
-		ForRange (j, 0, len - 1) {
-			UiLayout *layout_0 = table->player_images[i][j];
-			UiLayout *layout_1 = table->player_images[i][j+1];
-			bool in0 = UiLayoutMouseIn(layout_0, mouse);
-			bool in1 = UiLayoutMouseIn(layout_1, mouse);
-			if (in0) {
-				hover_i = i;
-				hover_j = j;
-			}
-			if (in1) {
-				hover_i = i;
-				hover_j = j+1;
+		} else {
+			ForRange (i, 0, len - 1) {
+				UiLayout *layout_0 = &table->player_cards_layout[0][i];
+				UiLayout *layout_1 = &table->player_cards_layout[0][i+1];
+				bool in0 = UiLayoutMouseIn(layout_0, mouse);
+				bool in1 = UiLayoutMouseIn(layout_1, mouse);
+				if (in0) {
+					hover_card = table->player_cards[0][i];
+				}
+				if (in1) {
+					hover_card = table->player_cards[0][i+1];
+				}
 			}
 		}
 	}
 
-	if (!mouse->left.is_down) {
-		CardTableTryRelaseGrab(table);
-	} else {
-		CardTableTryGrab(table, input, hover_i, hover_j);
+	b32 in_drop_area = UiLayoutMouseIn(&table->drop_layout, &input->mouse);
+
+	if (mouse->left.is_down && mouse->left.half_transition_count) {
+		if (in_drop_area) {
+			CardTablePlaySelect(table);
+		} else {
+			CardTableTrySelect(table, mouse, hover_card);
+		}
 	}
 
-	int drop_i = -1;
-	int drop_j = -1;
+	// NOTE: Render from here
+	if (in_drop_area) {
+		UiLayoutDrawColor(&table->drop_layout, 0x00ff0033);
+	}
+
 	ForRange (i, 0, 4) {
-		int len = table->player_cards_len[i];
+		i32 len = table->player_cards_len[i];
 		ForRange (j, 0, len) {
-			UiLayout *layout = table->player_images[i][j];
-			if (UiLayoutCollsionChecking(layout, table->drop_layout)) {
-				drop_i = i;
-				drop_j = j;
-			}
-		}
-	}
-	UiLayoutRender(table->drop_layout, renderer, (drop_i != -1));
-
-	/// NOTE(): Render
-	ForRange (i, 0, 4) {
-		int len = table->player_cards_len[i];
-		ForRange (j, 0, len) {
-			UiLayout *layout = table->player_images[i][j];
-			bool hl = ((i == hover_i) && (j == hover_j)) || ((i == drop_i) && (j == drop_j));
-
-			if (i != 0) {
-				LOCAL_PERSIST int back_idx = 0;
-				back_idx = (back_idx + 1) % 8000;
-				layout->texture = card52_back_images[back_idx / 2000];
+			Card card = table->player_cards[i][j];
+			UiLayout *layout = &table->player_cards_layout[i][j];
+			if (i == 0) {
+				CardDraw(layout, table->player_cards[i][j]);
+			} else {
+				CardBackDraw(layout);
 			}
 
-			UiLayoutRender(layout, renderer, hl);
+			if (card == hover_card) {
+				UiLayoutDrawColor(layout, 0x00ff0033);
+			}
 		}
 
-		GameTextRender(&table->drop_text, renderer, 0xffffff);
+		UiLayoutDrawText(&table->drop_text_layout,
+						 &table->drop_font,
+						 table->drop_text, 0xffffffff);
 	}
 }

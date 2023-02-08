@@ -17,7 +17,7 @@
 /// Các loại bài, theo thứ tự:
 ///
 /// - Cơ, Rô, Chuồn, Bích
-GLOBAL int card_suit_rank[] = {
+GLOBAL i32 card_suit_rank[] = {
 	[CARD_HEART] = 0,
 	[CARD_DIAMOND] = 1,
 	[CARD_CLUB] = 2,
@@ -25,10 +25,10 @@ GLOBAL int card_suit_rank[] = {
 };
 
 /// Giá trị trên các quân bài
-GLOBAL int card_key_rank[] = {
+GLOBAL i32 card_key_rank[] = {
 	[CARD_2] = 0,
 	[CARD_A] = 1,
-entities	[CARD_K] = 2,
+	[CARD_K] = 2,
 	[CARD_Q] = 3,
 	[CARD_J] = 4,
 	[CARD_10] = 5,
@@ -41,7 +41,7 @@ entities	[CARD_K] = 2,
 	[CARD_3] = 12,
 };
 
-int GetCardRank(Card card) {
+i32 GetCardRank(Card card) {
 	CardSuit suit = GetCardSuit(card);
 	CardKey key = GetCardKey(card);
 
@@ -74,17 +74,17 @@ const char *card_com_string[] {
 
 struct CardComResult {
 	CardCom  com;
-	int      value;
-	int      len;
+	i32      value;
+	i32      len;
 };
 
 
-bool CardsIsSequence(Card *cards, int len) {
+bool CardsIsSequence(Card *cards, i32 len) {
 	if (GetCardKey(cards[0]) == CARD_2) {
 		return false;
 	}
 
-	for (int i = 1; i < len; ++i) {
+	for (i32 i = 1; i < len; ++i) {
 		CardKey v0 = GetCardKey(cards[i - 1]);
 		CardKey v1 = GetCardKey(cards[i]);
 		if (v0 + 1 != v1) {
@@ -94,7 +94,7 @@ bool CardsIsSequence(Card *cards, int len) {
 	return true;
 }
 
-bool CardsIsDoubleSequence(Card *cards, int len) {
+bool CardsIsDoubleSequence(Card *cards, i32 len) {
 	if (len < 6) {
 		return false;
 	}
@@ -103,7 +103,7 @@ bool CardsIsDoubleSequence(Card *cards, int len) {
 		return false;
 	}
 
-	for (int i = 2; i < len; i += 2) {
+	for (i32 i = 2; i < len; i += 2) {
 		CardKey v0 = GetCardKey(cards[i - 2]);
 		CardKey v1 = GetCardKey(cards[i - 1]);
 		CardKey v2 = GetCardKey(cards[i]);
@@ -115,21 +115,25 @@ bool CardsIsDoubleSequence(Card *cards, int len) {
 	return true;
 }
 
-CardComResult CardCombine(Card *cards, int len) {
+CardComResult CardCombine(Card *cards, i32 len) {
 	CardComResult result = {};
 
+	if (len <= 0) {
+		goto error_handle;
+	}
+	
 	if (len == 1) {
 		result.com = CARD_COM_SINGLE;
 		result.value = cards[0];
 		ReturnDefer(result);
 	}
 
-	for (int i = 0; i < len - 1; ++i) {
-		int mn_rank = GetCardRank(cards[i]);
-		int mn_idx = i;
+	for (i32 i = 0; i < len - 1; ++i) {
+		i32 mn_rank = GetCardRank(cards[i]);
+		i32 mn_idx = i;
 
-		for (int j = i + 1; j < len; ++j) {
-			int rank = GetCardRank(cards[j]);
+		for (i32 j = i + 1; j < len; ++j) {
+			i32 rank = GetCardRank(cards[j]);
 			if (mn_rank > rank) {
 				mn_rank = rank;
 				mn_idx = j;
@@ -152,8 +156,8 @@ CardComResult CardCombine(Card *cards, int len) {
 	}
 
 	if (CardsIsSequence(cards, len)) {
-		int sum = cards[0];
-		for (int i = 1; i < len; ++i) {
+		i32 sum = cards[0];
+		for (i32 i = 1; i < len; ++i) {
 			sum += GetCardKey(cards[i]) * 4;
 		}
 		result.com = CARD_COM_SEQUENCE;
@@ -162,8 +166,8 @@ CardComResult CardCombine(Card *cards, int len) {
 	}
 
 	if (CardsIsDoubleSequence(cards, len)) {
-		int sum = cards[0];
-		for (int i = 1; i < len; ++i) {
+		i32 sum = cards[0];
+		for (i32 i = 1; i < len; ++i) {
 			sum += GetCardKey(cards[i]) * 4;
 		}
 		result.com = CARD_COM_SEQUENCE_DOUBLE;
@@ -311,8 +315,8 @@ handle_ok:
 CardCompareCall card_com_calls[CARD_COM_TOTAL][CARD_COM_TOTAL];
 
 void CardComCallsInit() {
-	for (int i = 0; i < CARD_COM_TOTAL; ++i) {
-		for (int j = 0; j < CARD_COM_TOTAL; ++j) {
+	for (i32 i = 0; i < CARD_COM_TOTAL; ++i) {
+		for (i32 j = 0; j < CARD_COM_TOTAL; ++j) {
 			card_com_calls[i][j] = 0;
 		}
 	}
@@ -331,8 +335,8 @@ void CardComCallsInit() {
 	card_com_calls[CARD_COM_QUADS][CARD_COM_DOUBLE] = &CardPlayQuads;
 }
 
-CardPlayResult CardPlay(Card *cards_0, int len_0,
-						Card *cards_1, int len_1) {
+CardPlayResult CardPlay(Card *cards_0, i32 len_0,
+						Card *cards_1, i32 len_1) {
 	CardComResult r0 = CardCombine(cards_0, len_0);
 	CardComResult r1 = CardCombine(cards_1, len_1);
 
@@ -343,56 +347,4 @@ CardPlayResult CardPlay(Card *cards_0, int len_0,
 	}
 
 	return (*call)(r0, r1);
-}
-
-inline Card CardBuild(CardSuit suit, CardKey value) {
-	return value * 4 + suit;
-}
-
-/// NOTE: Remember to free when done using
-char *CardString(Card card) {
-	CardSuit suit = GetCardSuit(card);
-	CardKey value = GetCardKey(card);
-
-	const char *suit_string = CardSuitString[suit];
-	const char *value_string = CardKeyString[value];
-
-	char *result = (char *)Alloc(strlen(suit_string) + strlen(value_string) + 1);
-
-	sprintf(result, "%s %s", suit_string, value_string);
-
-	return result;
-}
-
-
-
-int CardListIndex(Card *cards, int len, Card card) {
-	ForRange (i, 0, len) {
-		if (cards[i] == card) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-bool CardListContains(Card *cards, int len, Card card) {
-	ForRange (i, 0, len) {
-		if (cards[i] == card) {
-			return true;
-		}
-	}
-	return false;
-}
-
-void CardListRemoveIndex(Card *cards, UiLayout *layouts, int *len, int idx) {
-	if (idx >= 0) {
-		memmove(cards + idx, cards + idx + 1, (((*len) - idx - 1) * sizeof(Card)));
-		memmove(layouts + idx, layouts + idx + 1, (((*len) - idx - 1) * sizeof(UiLayout)));
-	}
-	(*len)--;
-}
-
-void CardListRemove(Card *cards, UiLayout *layouts, int *len, Card card) {
-	int idx = CardListIndex(cards, *len, card);
-	return CardListRemoveIndex(cards, layouts, len, idx);
 }

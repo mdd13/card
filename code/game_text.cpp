@@ -1,7 +1,3 @@
-/*
- * Author: Mai Duy Duong
- */
-
 #pragma once
 
 #include "SDL2/SDL_ttf.h"
@@ -10,13 +6,14 @@
 
 struct GameFont {
 	TTF_Font *data;
-	int      size;
+	i32      size;
 };
 
 void GameFontInit(GameFont *font,
 				  const char *path,
-				  int size) {
+				  i32 size) {
 	font->data = TTF_OpenFont(path, size);
 	Assert(font->data);
+
 	font->size = size;
 }
