@@ -5,8 +5,10 @@
 
 #include "game_text.cpp"
 #include "game_input.cpp"
-#include "game_layout.cpp"
-#include "game.cpp"
+#include "game_image.cpp"
+
+#include "ui_layout.cpp"
+
 #include "random.cpp"
 #include "52card.cpp"
 
@@ -26,7 +28,7 @@ GLOBAL int card_suit_rank[] = {
 GLOBAL int card_key_rank[] = {
 	[CARD_2] = 0,
 	[CARD_A] = 1,
-	[CARD_K] = 2,
+entities	[CARD_K] = 2,
 	[CARD_Q] = 3,
 	[CARD_J] = 4,
 	[CARD_10] = 5,
@@ -362,43 +364,7 @@ char *CardString(Card card) {
 	return result;
 }
 
-#define CardBackImg(n) "image/52cards/card-back" #n ".png"
-#define CardPng(suit, value) "image/52cards/card-" suit "-" value ".png"
-#define CardPng4(value) CardPng("hearts", #value),		\
-		CardPng("diamonds", #value),					\
-		CardPng("clubs", #value),						\
-		CardPng("spades", #value)
 
-const char *CardImgFile[] = {
-	CardPng4(2),
-	CardPng4(1),
-	CardPng4(13),
-	CardPng4(12),
-	CardPng4(11),
-	CardPng4(10),
-	CardPng4(9),
-	CardPng4(8),
-	CardPng4(7),
-	CardPng4(6),
-	CardPng4(5),
-	CardPng4(4),
-	CardPng4(3),
-};
-
-GLOBAL SDL_Texture *card52_images[52];
-GLOBAL SDL_Texture *card52_back_images[4];
-GLOBAL int32_t card_width = 96;
-GLOBAL int32_t card_height = 144;
-void CardTextureInit(SDL_Renderer *renderer) {
-	for (int i = 0; i < 52; ++i) {
-		card52_images[i] = IMG_LoadTexture(renderer, CardImgFile[i]);
-		Assert(card52_images[i]);
-	}
-	card52_back_images[0] = IMG_LoadTexture(renderer, CardBackImg(1));
-	card52_back_images[1] = IMG_LoadTexture(renderer, CardBackImg(2));
-	card52_back_images[2] = IMG_LoadTexture(renderer, CardBackImg(3));
-	card52_back_images[3] = IMG_LoadTexture(renderer, CardBackImg(4));
-}
 
 int CardListIndex(Card *cards, int len, Card card) {
 	ForRange (i, 0, len) {
@@ -418,15 +384,15 @@ bool CardListContains(Card *cards, int len, Card card) {
 	return false;
 }
 
-void CardListRemoveIndex(Card *cards, GameLayout **entities, int *len, int idx) {
+void CardListRemoveIndex(Card *cards, UiLayout *layouts, int *len, int idx) {
 	if (idx >= 0) {
 		memmove(cards + idx, cards + idx + 1, (((*len) - idx - 1) * sizeof(Card)));
-		memmove(entities + idx, entities + idx + 1, (((*len) - idx - 1) * sizeof(GameLayout *)));
+		memmove(layouts + idx, layouts + idx + 1, (((*len) - idx - 1) * sizeof(UiLayout)));
 	}
 	(*len)--;
 }
 
-void CardListRemove(Card *cards, GameLayout **entities, int *len, Card card) {
+void CardListRemove(Card *cards, UiLayout *layouts, int *len, Card card) {
 	int idx = CardListIndex(cards, *len, card);
-	return CardListRemoveIndex(cards, entities, len, idx);
+	return CardListRemoveIndex(cards, layouts, len, idx);
 }

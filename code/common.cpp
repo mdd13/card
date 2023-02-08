@@ -23,3 +23,8 @@
 GLOBAL const char *title = "Card";
 GLOBAL const int32_t window_width = 1280;
 GLOBAL const int32_t window_height = 720;
+
+GLOBAL SDL_Window *global_window;
+GLOBAL SDL_Renderer *global_renderer;
+
+#define LIBERATION_MONO_PATH "font/LiberationMono-Regular.ttf"

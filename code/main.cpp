@@ -10,8 +10,6 @@
 
 
 GLOBAL bool running = true;
-GLOBAL SDL_Window *window;
-GLOBAL SDL_Renderer *renderer;
 
 void ProcessInputKey(GameKeyState *state, bool is_down) {
 	if (state->is_down != is_down) {
@@ -97,34 +95,34 @@ int main() {
 	Assert(!err);
 	
 
-	window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width, window_height, SDL_WINDOW_OPENGL);
-	Assert(window);
+	global_window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width, window_height, SDL_WINDOW_OPENGL);
+	Assert(global_window);
 
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-	Assert(renderer);
+	global_renderer = SDL_CreateRenderer(global_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	Assert(global_renderer);
 
-	err = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	err = SDL_SetRenderDrawBlendMode(global_renderer, SDL_BLENDMODE_BLEND);
 	Assert(!err);
 
 	GameInput input = {};
 	GameMemory memory = {};
 	memory.len = Gb(1);
 	memory.base = Alloc(memory.len);
-
+	
 	while (running) {
 		ProcessInput(&input);
 
-		GameUpdateAndRender(&input, &memory, renderer);
+		GameUpdateAndRender(&input, &memory);
 	}
 
-	SDL_DestroyWindow(window);
-	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(global_window);
+	SDL_DestroyRenderer(global_renderer);
 
 	return 0;
 }
 
 #ifdef WINDOWS
- int WinMain() {
+int WinMain() {
 	return main();
 }
 #endif
