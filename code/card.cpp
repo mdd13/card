@@ -1,8 +1,8 @@
 #pragma once
 /// TODO: Use header file instead
 #include "common.cpp"
-#include "mem.cpp"
 
+#include "game_mem.cpp"
 #include "game_text.cpp"
 #include "game_input.cpp"
 #include "game_image.cpp"

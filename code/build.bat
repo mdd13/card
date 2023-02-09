@@ -11,10 +11,8 @@ cd build
 set linker_flags=-I../code -L../win32_lib/SDL2/x64 -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_net
 rem -Wl,-subsystem:console
 rem -Wl,-subsystem:windows
-set compiler_flags=-g -DWINDOWS=1 -std=c++20 -Werror -Wall -Wno-c99-designator
+set compiler_flags=-g -DWINDOWS=1 -std=c++20 -Werror -Wall -Wno-c99-designator -Wno-deprecated-declarations
 
 clang++ %compiler_flags%  ../code/main.cpp %linker_flags% -o game.exe
-
-clang++ %compiler_flags%  ../code/net.cpp %linker_flags% -o net_test.exe
 
 popd

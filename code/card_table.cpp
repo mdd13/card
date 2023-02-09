@@ -3,6 +3,8 @@
 #include "card.cpp"
 #include "common.cpp"
 
+#include "game_http.cpp"
+
 struct CardTable {
 	bool initialized;
 
@@ -23,8 +25,11 @@ struct CardTable {
 	GameFont drop_font;
 	char     *drop_text;
 
-	i32  select_cards_len;
-	Card select_cards[13];
+	i32      select_cards_len;
+	Card     select_cards[13];
+	GameFont select_font;
+	UiLayout selcet_cards_text_layout;	
+	char     *select_cards_text;
 };
 
 /// NOTE(): Texture and Table init
@@ -88,8 +93,8 @@ void CardTableRemoveCard(CardTable *table, i32 player, Card card) {
 		return;
 	}
 
-	RemoveIndex(cards, len, remove_idx);
-	RemoveIndex(layouts, len, remove_idx);
+	GameMemRemoveIndex(cards, len, remove_idx);
+	GameMemRemoveIndex(layouts, len, remove_idx);
 	table->player_cards_len[player]--;
 }
 
@@ -103,6 +108,13 @@ void CardTablePlaySelect(CardTable *table) {
 	if (combine_result.com == CARD_COM_ERR) {
 		return;
 	}
+
+	HttpResponse *response = HttpCardServerRequest("HEllO FROM CLIENT");
+	SDL_Log("Status: \n%s\n", response->status);
+	SDL_Log("Body: \n%s\n", response->body);
+
+
+	HttpResponseFree(response);
 
 	ForRange (i, 0, len) {
 		CardTableRemoveCard(table, 0, table->select_cards[i]);
@@ -197,7 +209,7 @@ void CardTableTrySelect(CardTable *table,
 		table->select_cards_len++;
 		UiLayoutSelect(&table->player_cards_layout[0][idx]);
 	} else {
-		RemoveIndex(table->select_cards, table->select_cards_len, idx);
+		GameMemRemoveIndex(table->select_cards, table->select_cards_len, idx);
 		table->select_cards_len--;
 		UiLayoutUnselect(&table->player_cards_layout[0][idx]);
 	}

@@ -122,8 +122,8 @@ i32 main() {
 
 	GameInput input = {};
 	GameMemory memory = {};
-	memory.len = Gb(1);
-	memory.base = Alloc(memory.len);
+	memory.len = Mb(10);
+	memory.base = GameMemAlloc(memory.len);
 
 	while (running) {
 		ProcessInput(&input);

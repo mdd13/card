@@ -117,7 +117,7 @@ char *CardString(Card card) {
 	const char *suit_string = CardSuitString[suit];
 	const char *value_string = CardKeyString[value];
 
-	char *result = (char *)Alloc(strlen(suit_string) + strlen(value_string) + 1);
+	char *result = (char *)GameMemAlloc(strlen(suit_string) + strlen(value_string) + 1);
 
 	sprintf(result, "%s %s", suit_string, value_string);
 	return result;

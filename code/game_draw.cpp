@@ -55,8 +55,12 @@ void GameDrawText(GameFont *font,
 	SDL_Texture *texture = SDL_CreateTextureFromSurface(global_renderer, surface);
 	SDL_RenderCopy(global_renderer, texture, 0, &rect);
 
-	SDL_FreeSurface(surface);
-	SDL_DestroyTexture(texture);
+	if (texture) {
+		SDL_DestroyTexture(texture);
+	}
+	if (surface) {
+		SDL_FreeSurface(surface);
+	}
 }
 
 void GameDrawColor(i32 color,

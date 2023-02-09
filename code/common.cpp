@@ -4,6 +4,8 @@
 #include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
 #include "SDL2/SDL_net.h"
+
+#include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,3 +51,5 @@ GLOBAL SDL_Renderer *global_renderer;
 
 #define LIBERATION_MONO_PATH "font/LiberationMono-Regular.ttf"
 
+#define HTTP_CARD_SERVER_HOST "192.168.1.11"
+#define HTTP_CARD_SERVER_PORT 8080
