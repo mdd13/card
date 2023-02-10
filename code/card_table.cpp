@@ -28,7 +28,7 @@ struct CardTable {
 	i32      select_cards_len;
 	Card     select_cards[13];
 	GameFont select_font;
-	UiLayout selcet_cards_text_layout;	
+	UiLayout selcet_cards_text_layout;
 	char     *select_cards_text;
 };
 
@@ -98,6 +98,58 @@ void CardTableRemoveCard(CardTable *table, i32 player, Card card) {
 	table->player_cards_len[player]--;
 }
 
+struct CardPlayRequest {
+	i32  user_id;
+	i32  cards_len;
+	Card cards[13];
+};
+
+char *CardPlayRequestString(CardPlayRequest *request) {
+	char *uid = StringFromI32(request->user_id);
+
+	usize len = StringLen(uid);
+	usize max_len = len + 3 + (3 * 13);
+
+	char *result = (char *)GameMemAlloc(max_len + 1);
+
+	char *cards_len = StringFromI32(request->cards_len);
+	len += 1 + StringLen(cards_len); // 1 is space len
+
+	StringConcat(result, uid);
+	StringConcat(result, " ");
+	StringConcat(result, cards_len);
+
+	ForRange (i, 0, request->cards_len) {
+		char *card = StringFromI32(request->cards[i]);
+		len += 1 + StringLen(card);
+		StringConcat(result, " ");
+		StringConcat(result, card);
+
+		GameMemFree(card);
+	}
+	GameMemFree(uid);
+	GameMemFree(cards_len);
+
+	return result;
+}
+
+void CardTableHttpPlay(CardTable *table) {
+	CardPlayRequest request = {};
+	request.user_id = 0;
+	request.cards_len = table->select_cards_len;
+	ForRange (i, 0, request.cards_len) {
+		request.cards[i] = table->select_cards[i];
+	}
+
+	char *request_str = CardPlayRequestString(&request);
+	HttpResponse *res = HttpRequestCardServer("POST", "/play", request_str);
+	GameMemFree(request_str);
+	
+	SDL_Log("Status: \n%s\n", res->status);
+	SDL_Log("Body: \n%s\n", res->body);
+	HttpResponseFree(res);
+}
+
 void CardTablePlaySelect(CardTable *table) {
 	i32 len = table->select_cards_len;
 
@@ -109,12 +161,7 @@ void CardTablePlaySelect(CardTable *table) {
 		return;
 	}
 
-	HttpResponse *response = HttpCardServerRequest("HEllO FROM CLIENT");
-	SDL_Log("Status: \n%s\n", response->status);
-	SDL_Log("Body: \n%s\n", response->body);
-
-
-	HttpResponseFree(response);
+	CardTableHttpPlay(table);
 
 	ForRange (i, 0, len) {
 		CardTableRemoveCard(table, 0, table->select_cards[i]);

@@ -4,71 +4,78 @@
 #include "game_mem.cpp"
 #include "game_strings.cpp"
 
-struct HttpOptions {
-	char *method;
-	char *path;
-	char *protocol;
-	char *user_agent;
-	char *host;
-};
+#define clrf "\r\n"
+#define clrf_len 2
+#define space_len 1
 
-#define SPACE_LEN 1
-#define CLRF_LEN 2
-#define CLRF "\r\n"
-
-char *BuildHttpMessage(HttpOptions *options, const char *body) {
-	usize method_len = StringLen(options->method);
-	usize path_len = StringLen(options->path);
-	usize protocol_len = StringLen(options->path);
-	usize user_agent_len = StringLen(options->user_agent);
-	usize host_len = StringLen(options->host);
+char *BuildHttpRequestMessage(const char *method,
+							  const char *path,
+							  const char *body) {
 	usize content_len = StringLen(body);
+	char *content_len_str = StringFromI32(content_len);
 
-	usize body_len = StringLen(body);
-	char body_len_str[10];
-	itoa(body_len, body_len_str, 10);
+	usize hdr_len = 0;
+	hdr_len += StringLen(method) + space_len +
+		StringLen(path) + space_len +
+		StringLen(HTTP_PROTOCOL) + clrf_len;
+	hdr_len += StringLen("User-Agent: ") + StringLen(HTTP_USER_AGENT) + clrf_len;
+	hdr_len += StringLen("Host: ") + StringLen(HTTP_CARD_SERVER_HOST) + clrf_len;
+	hdr_len += StringLen("Connection: close") + clrf_len;
+	hdr_len += StringLen("Content-Length: ") + StringLen(content_len_str) + clrf_len + clrf_len;
 
-	usize header_len = 0;
-	header_len += method_len + SPACE_LEN +
-		path_len + SPACE_LEN +
-		protocol_len + SPACE_LEN + CLRF_LEN +
-		StringLen("User-Agent: ") + user_agent_len + CLRF_LEN +
-		StringLen("Host: ") + host_len + CLRF_LEN +
-		StringLen("Connection: close") + CLRF_LEN +
-		StringLen("Content-Length: ") + content_len + CLRF_LEN + CLRF_LEN;
+	char *result = (char *)GameMemAlloc(hdr_len + content_len + 1);
+	StringConcat(result, method);
+	StringConcat(result, " ");
 
-	char *message = (char *)GameMemAlloc(header_len + body_len + 1);
-	strcat(message, options->method); strcat(message, " ");
-	strcat(message, options->path); strcat(message, " ");
-	strcat(message, options->protocol); strcat(message, CLRF);
+	StringConcat(result, path);
+	StringConcat(result, " ");
 
-	strcat(message, "User-Agent: "); strcat(message, options->user_agent); strcat(message, CLRF);
-	strcat(message, "Host: "); strcat(message, options->host); strcat(message, CLRF);
-	strcat(message, "Connection: close"); strcat(message, CLRF);
-	strcat(message, "Content-Length: "); strcat(message, body_len_str); strcat(message, CLRF);
-	strcat(message, CLRF);
+	StringConcat(result, HTTP_PROTOCOL);
+	StringConcat(result, clrf);
 
-	strcat(message, body);
+	StringConcat(result, "User-Agent: ");
+	StringConcat(result, HTTP_USER_AGENT);
+	StringConcat(result, clrf);
 
-	SDL_Log("message:\n%s\n", message);
+	StringConcat(result, "Host: ");
+	StringConcat(result, HTTP_CARD_SERVER_HOST);
+	StringConcat(result, clrf);
 
-	return message;
+	StringConcat(result, "Connection: close");
+	StringConcat(result, clrf);
+
+	StringConcat(result, "Content-Length: ");
+	StringConcat(result, content_len_str);
+	StringConcat(result, clrf);
+	StringConcat(result, clrf);
+
+	StringConcat(result, body);
+	GameMemFree(content_len_str);
+
+	return result;
 }
+
 
 struct HttpResponse {
 	char *status;
 	char *body;
 };
 
-HttpResponse *ParseHttpResponse(const char *msg) {
+void HttpResponseFree(HttpResponse *response) {
+	GameMemFree(response->status);
+	GameMemFree(response->body);
+	GameMemFree(response);
+}
+
+HttpResponse *ParseHttpResponse(char *msg) {
 	i32 msg_len = StringLen(msg);
 
 	i32 status_begin_idx = StringIndex(msg, " ") + 1;
 	Assert(status_begin_idx != 0);
 
-	i32 header_end_idx = StringIndex(msg, "\r\n\r\n");
+	i32 header_end_idx = StringIndex(msg, clrf clrf);
 	Assert(header_end_idx != -1);
-	i32 body_begin_idx = header_end_idx + CLRF_LEN * 2;
+	i32 body_begin_idx = header_end_idx + clrf_len + clrf_len;
 
 	/// TODO: Valid the header
 
@@ -83,16 +90,7 @@ HttpResponse *ParseHttpResponse(const char *msg) {
 	return result;
 }
 
-void HttpResponseFree(HttpResponse *response) {
-	GameMemFree(response->status);
-	GameMemFree(response->body);
-	GameMemFree(response);
-}
-
-
-char *HttpRequest(const char *host, u16 port,
-				  HttpOptions *options,
-				  const char *body) {
+char *HttpSendMessage(const char *host, u16 port, const char *msg) {
 	IPaddress address;
 	i32 err = SDLNet_ResolveHost(&address, host, port);
 	Assert(!err);
@@ -100,55 +98,46 @@ char *HttpRequest(const char *host, u16 port,
 	TCPsocket sock = SDLNet_TCP_Open(&address);
 	Assert(sock);
 
-	char *message = BuildHttpMessage(options, body);
-	i32 sent_len = SDLNet_TCP_Send(sock, message, StringLen(message));
-	Assert(sent_len >= 0);
+	// NOTE: Send message
+	{
+		i32 len = SDLNet_TCP_Send(sock, msg, StringLen(msg));
+		Assert(len >= 0);
+	}
 
-#define MAX_READ_LEN 1024
-	usize result_len = 0;
-	char *result = (char *)GameMemAlloc(result_len);
+	// NOTE: Receive message
+#define RECV_MAX_LEN 1024
+#define RECV_MAX_BUF 1024 + 1
+	usize len = RECV_MAX_LEN;
+	char *result = (char *)GameMemAlloc(RECV_MAX_BUF);
+
 	i32 read_idx = 0;
-	i32 n = -1;
-	i32 timeout_ms = 0;
-	while(timeout_ms < 500) {
-		n = SDLNet_TCP_Recv(sock, result + read_idx, MAX_READ_LEN);
-		Assert(n != -1);
-		if (n == 0) {
-			SDL_Delay(100);
-			timeout_ms += 100;
+
+	for(;;) {
+		i32 n = SDLNet_TCP_Recv(sock, result + read_idx, RECV_MAX_LEN);
+		if (n == 0 || n == -1) {
+			break;
 		}
-		
-		result_len += n;		
-		read_idx = result_len;
-		if (n == MAX_READ_LEN) {
-			GameMemRealloc(result, result_len, result_len + MAX_READ_LEN);
+		len += n;
+		read_idx = len;
+		if (n == RECV_MAX_LEN) {
+			GameMemRealloc(result, len, len + RECV_MAX_BUF);
 		}
 	}
-	// Free message after sent
-	GameMemFree(message);
 
 	SDLNet_TCP_Close(sock);
-
-	result[result_len] = '\0';
+	result[len] = '\0';
 
 	return result;
 }
 
-
-HttpResponse *HttpCardServerRequest(const char *body) {
-	HttpOptions	options = {};
-	options.method = (char *)"POST";
-	options.path = (char *)"/";
-	options.protocol = (char *)"HTTP/1.1";
-	options.user_agent = (char *)"cardclient";
-	options.host = (char *)"cardserver";
-
-	char *res_msg = HttpRequest(HTTP_CARD_SERVER_HOST,
-								HTTP_CARD_SERVER_PORT,
-								&options,
-								body);
-	HttpResponse *result = ParseHttpResponse(res_msg);
+HttpResponse *HttpRequestCardServer(const char *method,
+									const char *path,
+									const char *body) {
+	char *msg = BuildHttpRequestMessage(method, path, body);
+	char *res_msg = HttpSendMessage(HTTP_CARD_SERVER_HOST, HTTP_CARD_SERVER_PORT, msg);
+	HttpResponse *response = ParseHttpResponse(res_msg);
+	GameMemFree(msg);
 	GameMemFree(res_msg);
 
-	return result;
+	return response;
 }

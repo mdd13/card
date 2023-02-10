@@ -2,6 +2,8 @@
 
 #include "common.cpp"
 
+#include "game_mem.cpp"
+
 
 i32 StringLen(const char *s) {
 	const char *p = s;
@@ -72,4 +74,36 @@ char *StringCopyPart(const char *src, i32 from, i32 to) {
 	result[m] = '\0';
 
 	return result;
+}
+
+char *StringFromI32(i32 num) {
+	i32 len = 0;
+	b32 is_negative = false;
+	if (num == 0) {
+		len = 1;
+	}
+	else if (num < 0) {
+		len = log10(num) + 2;
+		is_negative = true;
+		num = -num;
+	}
+	else {
+		len = log10(num) + 1;
+	}
+
+	char *result = (char *)GameMemAlloc(len + 1);
+	for (i32 i = len - 1; i >= 0; --i) {
+		result[i] = (num % 10) + '0';
+		num /= 10;
+	}
+
+	result[len] = '\0';
+	if (is_negative) {
+		result[0] = '-';
+	}
+	return result;
+}
+
+void StringConcat(char *dst, const char *src) {
+	strcat(dst, src);
 }

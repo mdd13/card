@@ -53,3 +53,5 @@ GLOBAL SDL_Renderer *global_renderer;
 
 #define HTTP_CARD_SERVER_HOST "192.168.1.11"
 #define HTTP_CARD_SERVER_PORT 8080
+#define HTTP_USER_AGENT "card_client"
+#define HTTP_PROTOCOL "HTTP/1.1"
